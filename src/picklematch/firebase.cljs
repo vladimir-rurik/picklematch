@@ -5,7 +5,7 @@
    ["firebase/auth" :refer [getAuth GoogleAuthProvider FacebookAuthProvider signInWithPopup]]
    ["firebase/firestore" :as firestore]))
 
-;; Initialize the Firebase app only if it hasn't been initialized yet
+;; Initialize the Firebase app only if not already initialized
 (defonce app
   (if (empty? (getApps))
     (initializeApp (clj->js firebase-config))
@@ -19,7 +19,7 @@
 (defonce db
   (firestore/getFirestore app))
 
-;; Helper to perform Google sign-in
+;; Google sign-in
 (defn google-sign-in []
   (let [provider (GoogleAuthProvider.)]
     (-> (signInWithPopup auth-inst provider)
@@ -28,7 +28,7 @@
         (.catch (fn [err]
                   (js/console.error "Google sign-in error" err))))))
 
-;; Helper to perform Facebook sign-in
+;; Facebook sign-in
 (defn facebook-sign-in []
   (let [provider (FacebookAuthProvider.)]
     (-> (signInWithPopup auth-inst provider)
@@ -37,19 +37,19 @@
         (.catch (fn [err]
                   (js/console.error "Facebook sign-in error" err))))))
 
-;; Example: store user in Firestore (basic user doc)
+;; Store a new or existing user in Firestore
 (defn store-user!
   [uid email]
-  (let [users-collection (firestore/collection db "users")]
+  (let [users-col (firestore/collection db "users")]
     (-> (firestore/setDoc
-         (firestore/doc users-collection uid)
-         (clj->js {:uid   uid
+         (firestore/doc users-col uid)
+         (clj->js {:uid uid
                    :email email
-                   :rating 1200})) ;; default rating
+                   :rating 1200}))
         (.then #(js/console.log "Stored user in Firestore:" uid))
         (.catch #(js/console.error "Error storing user in Firestore:" %)))))
 
-;; Example: update a user's rating
+;; Update user rating in Firestore
 (defn update-user-rating!
   [uid new-rating]
   (let [doc-ref (firestore/doc (firestore/collection db "users") uid)]

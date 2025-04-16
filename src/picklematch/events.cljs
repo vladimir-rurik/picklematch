@@ -8,23 +8,20 @@
 (rf/reg-event-db
  :initialize
  (fn [_ _]
-   {:user nil
-    :players {}  ;; map of uid->rating
-    :games
-    ;; For MVP, you can hardcode sample games or fetch them from Firestore.
-    ;; Example:
-    [{:id 1
-      :time "8:00 AM"
-      :team1 {:player1 "uid-a" :player2 "uid-b"}
-      :team2 {:player1 "uid-c" :player2 "uid-d"}}
-     {:id 2
-      :time "9:00 AM"
-      :team1 {:player1 "uid-e" :player2 "uid-f"}
-      :team2 {:player1 "uid-g" :player2 "uid-h"}}]
+   {:user                 nil
+    :players              {}
+    :games                []
     :current-session-date (js/Date.)
-    :log-of-rating-events []}))
+    :log-of-rating-events []
+    :page                 :login}))
 
-;; -- Google sign-in flow --
+;; Change page
+(rf/reg-event-db
+ :set-page
+ (fn [db [_ page-kw]]
+   (assoc db :page page-kw)))
+
+;; Google sign-in flow
 (rf/reg-event-fx
  :sign-in-with-google
  (fn [{:keys [db]} _]
@@ -36,7 +33,7 @@
  (fn [_]
    (fb/google-sign-in)))
 
-;; -- Facebook sign-in flow --
+;; Facebook sign-in flow
 (rf/reg-event-fx
  :sign-in-with-facebook
  (fn [{:keys [db]} _]
@@ -48,19 +45,20 @@
  (fn [_]
    (fb/facebook-sign-in)))
 
-;; Once sign-in is successful, you should dispatch :login-success with
-;; user info that you get from the popup response.
-;; For demonstration, we'll store user in the db with default rating:
+;; Called once auth is confirmed
 (rf/reg-event-fx
  :login-success
- (fn [{:keys [db]} [_ {:keys [uid email]}]]
+ (fn [{:keys [db]} [_ {:keys [uid email rating]}]]
+   ;; We can store a default rating or fetch from Firestore
    (fb/store-user! uid email)
-   {:db (assoc db :user {:uid uid
-                         :email email})
-    ;; Optionally, you can retrieve user's rating from Firestore and store it in :players
-    }))
+   {:db (-> db
+            (assoc :user {:uid uid
+                          :email email
+                          :rating (or rating 1200)})
+            ;; Move to the schedule page
+            (assoc :page :schedule))}))
 
-;; Example of storing game results (scores), then recalculating ratings:
+;; Submitting a game result
 (rf/reg-event-fx
  :submit-game-result
  (fn [{:keys [db]} [_ game-id team1-score team2-score]]
@@ -78,7 +76,6 @@
                                gs)))]
      (let [[updated-ratings rating-event]
            (rating/recalculate-ratings new-db updated-game)]
-       ;; Persist updated ratings in :players
        {:db (-> new-db
                 (assoc :players updated-ratings)
                 (update :log-of-rating-events conj rating-event))}))))
