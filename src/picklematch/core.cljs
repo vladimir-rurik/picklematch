@@ -1,25 +1,42 @@
 (ns picklematch.core
   (:require
-   [reagent.dom :as rdom]
    [re-frame.core :as rf]
-    ;; Use the "auth-inst" from firebase.cljs:
+   [reagent.core :as r]
+   ["react-dom/client" :as rdom-client]
+   ;; Our firebase references
    [picklematch.firebase :refer [auth-inst]]
-    ;; If you want Firestore, also :refer [db]
-    ;; For Google sign-in:
-   ["firebase/auth" :refer [GoogleAuthProvider signInWithPopup FacebookAuthProvider]]))
+   ;; We need signInAnonymously for anon, plus GoogleAuthProvider for Google
+   ["firebase/auth" :refer [signInAnonymously
+                            GoogleAuthProvider
+                            signInWithPopup]]))
 
-;; ------------------------------------------------------
-;; (A) Basic Re-frame Setup
-;; ------------------------------------------------------
+;; -- Events & Effects --
 
 (rf/reg-event-db
  :initialize
  (fn [_ _]
    {:user nil}))
 
-;; -- Google Sign-in
+;; Anonymous Sign-In
 (rf/reg-event-fx
- :sign-in-with-google
+ :sign-in-anonymous
+ (fn [{:keys [db]} _]
+   {:db db
+    :sign-in/anonymous true}))
+
+(rf/reg-fx
+ :sign-in/anonymous
+ (fn [_]
+   (-> (signInAnonymously auth-inst)
+       (.then (fn [cred]
+                (js/console.log "Anon sign-in success" cred)
+                (rf/dispatch [:login-success (.-user cred)])))
+       (.catch (fn [err]
+                 (js/console.error "Anon sign-in error" err))))))
+
+;; Google Sign-In
+(rf/reg-event-fx
+ :sign-in-google
  (fn [{:keys [db]} _]
    {:db db
     :sign-in/google true}))
@@ -30,66 +47,44 @@
    (let [provider (GoogleAuthProvider.)]
      (-> (signInWithPopup auth-inst provider)
          (.then (fn [result]
-                  ;; The user object is accessible at (.-user result)
+                  (js/console.log "Google sign-in success" result)
                   (rf/dispatch [:login-success (.-user result)])))
-         (.catch (fn [err]
-                   (js/console.error "Google sign-in error: " err)))))))
+         (.catch (fn [error]
+                   (js/console.error "Google sign-in error" error)))))))
 
-;; -- Facebook Sign-in (optional)
-(rf/reg-event-fx
- :sign-in-with-facebook
- (fn [{:keys [db]} _]
-   {:db db
-    :sign-in/facebook true}))
-
-(rf/reg-fx
- :sign-in/facebook
- (fn [_]
-   (let [provider (FacebookAuthProvider.)]
-     (-> (signInWithPopup auth-inst provider)
-         (.then (fn [result]
-                  (rf/dispatch [:login-success (.-user result)])))
-         (.catch (fn [err]
-                   (js/console.error "Facebook sign-in error: " err)))))))
-
-;; Store user info in app-db
 (rf/reg-event-db
  :login-success
- (fn [db [_ user]]
+ (fn [db [_ user-obj]]
    (assoc db :user
-          {:uid          (.-uid user)
-           :display-name (.-displayName user)
-           :email        (.-email user)
-           :photo        (.-photoURL user)})))
+          {:uid          (.-uid user-obj)
+           :email        (.-email user-obj)
+           :display-name (.-displayName user-obj)
+           :photo        (.-photoURL user-obj)})))
 
 (rf/reg-sub
  :user
- (fn [db _]
-   (:user db)))
+ (fn [db _] (:user db)))
 
-
-;; ------------------------------------------------------
-;; (B) Minimal UI
-;; ------------------------------------------------------
+;; -- Views --
 
 (defn login-panel []
-  [:div {:style {:margin "2rem"}}
+  [:div
    [:h2 "PickleMatch Login"]
    [:button {:style {:margin-right "1rem"}
-             :on-click #(rf/dispatch [:sign-in-with-google])}
-    "Sign in with Google"]
-   [:button {:on-click #(rf/dispatch [:sign-in-with-facebook])}
-    "Sign in with Facebook"]])
+             :on-click #(rf/dispatch [:sign-in-google])}
+    "Sign In with Google"]
+   [:button {:on-click #(rf/dispatch [:sign-in-anonymous])}
+    "Sign In Anonymously"]])
 
 (defn home-panel []
   (let [user @(rf/subscribe [:user])]
-    [:div {:style {:margin "2rem"}}
+    [:div
      [:h2 "Welcome!"]
-     [:p (str "Hello, " (:display-name user))]
+     [:p (str "Hello, " (or (:display-name user) "anonymous user"))]
      [:p (str "Email: " (:email user))]
-     (when-let [photo (:photo user)]
-       [:img {:src photo
-              :style {:width "80px"
+     (when (:photo user)
+       [:img {:src (:photo user)
+              :style {:width "60px"
                       :border-radius "50%"}}])]))
 
 (defn main-panel []
@@ -98,14 +93,13 @@
       [home-panel]
       [login-panel])))
 
+;; -- React 18 Mount --
 
-;; ------------------------------------------------------
-;; (C) The init function
-;; ------------------------------------------------------
+(defonce root
+  (rdom-client/createRoot (js/document.getElementById "app")))
 
 (defn ^:dev/after-load mount-root []
-  (rdom/render [main-panel]
-               (.getElementById js/document "app")))
+  (.render root (r/as-element [main-panel])))
 
 (defn init []
   (rf/dispatch-sync [:initialize])
