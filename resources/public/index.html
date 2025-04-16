@@ -2,11 +2,72 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <title>PickleMatch Login</title>
+    <title>PickleMatch</title>
+    <style>
+      /* Minimal global styling */
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: #f2f2f2;
+      }
+      .app-container {
+        margin: 0 auto;
+        max-width: 800px;
+        background: #fff;
+        padding: 2rem;
+      }
+      h1, h2, h3, h4 {
+        font-family: 'Helvetica Neue', Arial, sans-serif;
+        margin-bottom: 0.5rem;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      }
+      th, td {
+        text-align: left;
+        padding: 0.75rem;
+        border-bottom: 1px solid #ccc;
+      }
+      thead {
+        background: #fafafa;
+      }
+      button {
+        padding: 0.5rem 1rem;
+        margin: 0.25rem;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+      }
+      .btn-primary {
+        background: #007bff;
+        color: #fff;
+      }
+      .btn-secondary {
+        background: #6c757d;
+        color: #fff;
+      }
+      .login {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+      }
+      .score-input {
+        width: 4rem;
+      }
+      .header-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+      }
+    </style>
   </head>
   <body>
-    <div id="app"></div>
-    <!-- Shadow-CLJS will output main.js here -->
+    <div id="app" class="app-container"></div>
     <script src="/js/main.js"></script>
   </body>
 </html>

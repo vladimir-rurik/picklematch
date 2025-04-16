@@ -16,3 +16,8 @@
  :current-session-date
  (fn [db _]
    (:current-session-date db)))
+
+(rf/reg-sub
+ :players
+ (fn [db _]
+   (:players db)))

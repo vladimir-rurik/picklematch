@@ -5,11 +5,17 @@
 
 (defn login-panel []
   [:div.login
-   [:button {:on-click #(rf/dispatch [:sign-in-with-google])}
+   [:h2 "PickleMatch Login"]
+   ;; Google
+   [:button.btn-primary
+    {:on-click #(rf/dispatch [:sign-in-with-google])}
     "Sign in with Google"]
-   ;; Similarly for Facebook
-   [:button {:on-click #(js/alert "Facebook sign-in not yet wired")}
-    "Sign in with Facebook"]])
+   ;; Facebook
+   [:button.btn-primary
+    {:on-click #(rf/dispatch [:sign-in-with-facebook])}
+    "Sign in with Facebook"]
+   ;; For an email sign-up/confirmation approach, you'd add more UI/logic here
+   ])
 
 (defn game-row [game]
   (let [team1-score (r/atom (or (:team1-score game) 0))
@@ -22,41 +28,58 @@
        [:td (str (get-in game [:team2 :player1]) " / "
                  (get-in game [:team2 :player2]))]
        [:td
-        [:input {:type "number"
-                 :value @team1-score
-                 :on-change #(reset! team1-score (.. % -target -value))}]]
+        [:input.score-input
+         {:type "number"
+          :value @team1-score
+          :on-change #(reset! team1-score (.. % -target -value))}]]
        [:td
-        [:input {:type "number"
-                 :value @team2-score
-                 :on-change #(reset! team2-score (.. % -target -value))}]]
+        [:input.score-input
+         {:type "number"
+          :value @team2-score
+          :on-change #(reset! team2-score (.. % -target -value))}]]
        [:td
-        [:button
-         {:on-click #(rf/dispatch [:submit-game-result
-                                   (:id game)
-                                   (int @team1-score)
-                                   (int @team2-score)])}
+        [:button.btn-secondary
+         {:on-click #(rf/dispatch
+                      [:submit-game-result
+                       (:id game)
+                       (js/parseInt @team1-score)
+                       (js/parseInt @team2-score)])}
          "Save"]]])))
 
 (defn game-list []
   (let [games @(rf/subscribe [:games])]
-    [:table
-     [:thead
-      [:tr
-       [:th "Time"]
-       [:th "Team 1"]
-       [:th "Team 2"]
-       [:th "Score T1"]
-       [:th "Score T2"]
-       [:th ""]]]
-     [:tbody
-      (for [g games]
-        ^{:key (:id g)} [game-row g])]]))
+    [:div
+     [:div.header-bar
+      [:h2 "Today's Games"]
+      ;; Print button
+      [:button.btn-secondary
+       {:on-click #(js/window.print)}
+       "Print Game List"]]
+     [:table
+      [:thead
+       [:tr
+        [:th "Time"]
+        [:th "Team 1"]
+        [:th "Team 2"]
+        [:th "Score T1"]
+        [:th "Score T2"]
+        [:th "Action"]]]
+      [:tbody
+       (for [g games]
+         ^{:key (:id g)}
+         [game-row g])]]]))
+
+(defn home-panel []
+  (let [user @(rf/subscribe [:user])]
+    [:div
+     [:h3 "Welcome!"]
+     [:p (str "Hello, " (or (:email user) "anonymous user"))]
+     ;; You could display their current rating if fetched from :players
+     [game-list]]))
 
 (defn main-panel []
   (let [user @(rf/subscribe [:user])]
     [:div
      (if user
-       [:div
-        [:h2 "Welcome " (:email user)]
-        [game-list]]
+       [home-panel]
        [login-panel])]))
