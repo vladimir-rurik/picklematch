@@ -15,3 +15,8 @@
    :modules    {:main {:init-fn picklematch.core/init}}
    :devtools   {:http-root "resources/public"
                 :http-port 3000}}}}
+
+:test
+{:target :node-test
+ :output-to "target/test/test.js"
+ :autorun true}

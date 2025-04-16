@@ -6,23 +6,19 @@
 (defn login-panel []
   [:div.login
    [:h2 "PickleMatch Login"]
-   ;; Google
    [:button.btn-primary
     {:on-click #(rf/dispatch [:sign-in-with-google])}
     "Sign in with Google"]
-   ;; Facebook
    [:button.btn-primary
     {:on-click #(rf/dispatch [:sign-in-with-facebook])}
-    "Sign in with Facebook"]
-   ;; For an email sign-up/confirmation approach, you'd add more UI/logic here
-   ])
+    "Sign in with Facebook"]])
 
 (defn game-row [game]
   (let [team1-score (r/atom (or (:team1-score game) 0))
         team2-score (r/atom (or (:team2-score game) 0))]
     (fn []
       [:tr
-       [:td (str (:time game))]
+       [:td (:time game)]
        [:td (str (get-in game [:team1 :player1]) " / "
                  (get-in game [:team1 :player2]))]
        [:td (str (get-in game [:team2 :player1]) " / "
@@ -54,27 +50,32 @@
       ;; Print button
       [:button.btn-secondary
        {:on-click #(js/window.print)}
-       "Print Game List"]]
-     [:table
-      [:thead
-       [:tr
-        [:th "Time"]
-        [:th "Team 1"]
-        [:th "Team 2"]
-        [:th "Score T1"]
-        [:th "Score T2"]
-        [:th "Action"]]]
-      [:tbody
-       (for [g games]
-         ^{:key (:id g)}
-         [game-row g])]]]))
+       "Print Game List"]
+      ;; Generate next session
+      [:button.btn-primary
+       {:on-click #(rf/dispatch [:generate-next-session])}
+       "Generate Next Session"]]
+     (if (seq games)
+       [:table
+        [:thead
+         [:tr
+          [:th "Time"]
+          [:th "Team 1"]
+          [:th "Team 2"]
+          [:th "Score T1"]
+          [:th "Score T2"]
+          [:th "Action"]]]
+        [:tbody
+         (for [g games]
+           ^{:key (:id g)}
+           [game-row g])]]
+       [:p "No games scheduled yet. Click 'Generate Next Session' to create matchups."])]))
 
 (defn home-panel []
   (let [user @(rf/subscribe [:user])]
     [:div
      [:h3 "Welcome!"]
      [:p (str "Hello, " (or (:email user) "anonymous user"))]
-     ;; You could display their current rating if fetched from :players
      [game-list]]))
 
 (defn main-panel []
