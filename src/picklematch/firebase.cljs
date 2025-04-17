@@ -53,17 +53,22 @@
   [uid email]
   (let [doc-ref (firestore/doc (firestore/collection db "users") uid)]
     (-> (firestore/getDoc doc-ref)
-        (.then (fn [snapshot]
-                 (if-not (.-exists snapshot)
-                   (do
-                     (js/console.log "Storing new user doc in Firestore" uid)
-                     (firestore/setDoc doc-ref
-                                       (clj->js {:uid    uid
-                                                 :email  email
-                                                 :rating 1200
-                                                 :role   "ordinary"})))
-                   (js/console.log "User doc already exists for" uid))))
-        (.catch #(js/console.error "Error checking user in Firestore:" %)))))
+       (.then
+        (fn [snapshot]
+          ;; Check existence of doc
+          (if-not (.exists snapshot)
+            ;; If doesn't exist, create it
+            (-> (firestore/setDoc doc-ref
+                                  (clj->js {:uid uid
+                                            :email email
+                                            :rating 1200
+                                            :role "ordinary"}))
+                (.then #(js/console.log "New user doc created for" uid))
+                (.catch #(js/console.error "Error creating user doc:" %)))
+            ;; Else: do nothing
+            (js/console.log "User doc already exists for" uid))))
+       (.catch #(js/console.error "Error checking user in Firestore:" %)))))
+
 
 (defn load-user-doc!
   [uid on-success on-fail]
@@ -114,6 +119,7 @@
         q (-> (firestore/query games-collection
                                (firestore/where "date" "==" date-str)
                                (firestore/orderBy "time")))]
+    (js/console.log "Loading games for date:" date-str)
     (-> (firestore/getDocs q)
         (.then (fn [query-snapshot]
                  (let [games (for [doc (.-docs query-snapshot)]

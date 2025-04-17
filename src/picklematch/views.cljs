@@ -50,6 +50,18 @@
                                (rf/dispatch [:set-selected-date date-obj])
                                (rf/dispatch [:load-games-for-date val])))}]])))
 
+(defn user-display
+  "Given a uid, return a friendly display name from the user's email."
+  [uid]
+  (let [players @(rf/subscribe [:players]) ; {uid {:email ... :rating ...}}
+        user-map (get players uid)
+        email    (:email user-map)]
+    ;; If we have an email like "fname.lname@gmail.com", 
+    ;; we can take the substring before "@" as a "name"
+    (some-> email
+            (str/split #"@")
+            first)))
+
 (defn game-row [game]
   (let [team1-score (r/atom (:team1-score game))
         team2-score (r/atom (:team2-score game))]
