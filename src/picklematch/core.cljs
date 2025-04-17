@@ -4,14 +4,12 @@
    [reagent.core :as r]
    ["react-dom/client" :as rdom-client]
    [picklematch.views :refer [main-panel]]
-   [picklematch.events]  ;; we need to load them so they register
-   [picklematch.subs]    ;; so subscriptions are registered
+   [picklematch.events]  ;; load to register events
+   [picklematch.subs]    ;; load to register subs
    [picklematch.firebase :refer [auth-inst]]
    ["firebase/auth" :refer [onAuthStateChanged]]))
 
-;; The primary entry point. We'll watch for Firebase auth state changes and
-;; dispatch :login-success if logged in.
-
+;; Event to handle authentication state change
 (rf/reg-event-fx
  :handle-auth-changed
  (fn [{:keys [db]} [_ user]]
