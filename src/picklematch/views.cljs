@@ -1,7 +1,8 @@
 (ns picklematch.views
   (:require
    [re-frame.core :as rf]
-   [reagent.core :as r]))
+   [reagent.core :as r]
+   [clojure.string :as str]))
 
 (defn login-panel []
   [:div.login
@@ -14,7 +15,6 @@
    [:button.btn-primary
     {:on-click #(rf/dispatch [:sign-in-with-facebook])}
     "Sign in with Facebook"]
-   ;; For an email sign-up/confirmation approach, you'd add more UI/logic here
    ])
 
 (defn game-row [game]
@@ -70,11 +70,13 @@
          [game-row g])]]]))
 
 (defn home-panel []
-  (let [user @(rf/subscribe [:user])]
+  (let [user @(rf/subscribe [:user])
+        email (:email user)
+        name (some-> email (str/split #"\.") first)]
     [:div
      [:h3 "Welcome!"]
-     [:p (str "Hello, " (or (:email user) "anonymous user"))]
-     ;; You could display their current rating if fetched from :players
+     [:p (str "Hello, " (or name "anonymous user"))]
+     ;; display their current rating if fetched from :players
      [game-list]]))
 
 (defn main-panel []
