@@ -174,3 +174,17 @@
                (js/console.log "Successfully signed out.")))
       (.catch (fn [err]
                 (js/console.error "Error signing out:" err)))))
+
+(defn load-all-users! [on-success on-fail]
+  (let [col-ref (firestore/collection db "users")]
+    (-> (firestore/getDocs col-ref)
+        (.then (fn [snapshot]
+                 (let [docs (.-docs snapshot)
+                       users (into {}
+                                   (map (fn [doc]
+                                          (let [udata (js->clj (.data doc) :keywordize-keys true)
+                                                uid   (:uid udata)]
+                                            [uid udata])))
+                                   docs)]
+                   (on-success users))))
+        (.catch on-fail))))

@@ -56,11 +56,11 @@
   (let [players @(rf/subscribe [:players]) ; {uid {:email ... :rating ...}}
         user-map (get players uid)
         email    (:email user-map)]
-    ;; If we have an email like "fname.lname@gmail.com", 
-    ;; we can take the substring before "@" as a "name"
-    (some-> email
-            (str/split #"@")
-            first)))
+    (some-> email (str/split #"\.") first)
+    ;; (some-> email
+    ;;         (str/split #"@")
+    ;;         first)
+    ))
 
 (defn game-row [game]
   (let [team1-score (r/atom (:team1-score game))
@@ -73,8 +73,12 @@
             t2p2 (or (:player2 team2) "Empty")]
         [:tr
          [:td time]
-         [:td (str t1p1 " / " t1p2)]
-         [:td (str t2p1 " / " t2p2)]
+         [:td (str (or (user-display t1p1) "Empty")
+                   " / "
+                   (or (user-display t1p2) "Empty"))]
+         [:td (str (or (user-display t2p1) "Empty")
+                   " / "
+                   (or (user-display t2p2) "Empty"))]
          [:td
           [:input.score-input
            {:type "number"
