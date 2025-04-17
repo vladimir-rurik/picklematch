@@ -4,54 +4,97 @@
    [reagent.core :as r]
    [clojure.string :as str]))
 
+;; --------------------
+;; Components
+;; --------------------
 (defn login-panel []
   [:div.login
    [:h2 "PickleMatch Login"]
-   ;; Google
    [:button.btn-primary
     {:on-click #(rf/dispatch [:sign-in-with-google])}
     "Sign in with Google"]
-   ;; Facebook
    [:button.btn-primary
     {:on-click #(rf/dispatch [:sign-in-with-facebook])}
-    "Sign in with Facebook"]
-   ])
+    "Sign in with Facebook"]])
+
+(defn schedule-game-panel []
+  (let [date-str (r/atom "")
+        time-str (r/atom "")]
+    (fn []
+      [:div
+       [:h3 "Schedule a new game"]
+       [:label "Date: "]
+       [:input {:type "date"
+                :on-change #(reset! date-str (.. % -target -value))}]
+       [:br]
+       [:label "Time: "]
+       [:input {:type "text"
+                :placeholder "e.g. 8:00 AM"
+                :on-change #(reset! time-str (.. % -target -value))}]
+       [:button.btn-secondary
+        {:on-click #(rf/dispatch [:schedule-game @date-str @time-str])}
+        "Add Game"]])))
+
+(defn date-selector []
+  (let [selected-date @(rf/subscribe [:selected-date])]
+    (fn []
+      [:div.calendar
+       [:h3 "Pick a date to view games"]
+       [:input {:type "date"
+                :value (some-> selected-date
+                               (.toISOString)
+                               (subs 0 10))
+                :on-change (fn [e]
+                             (let [val (.-value (.-target e))
+                                   date-obj (js/Date. val)]
+                               (rf/dispatch [:set-selected-date date-obj])
+                               (rf/dispatch [:load-games-for-date val])))}]])))
 
 (defn game-row [game]
-  (let [team1-score (r/atom (or (:team1-score game) 0))
-        team2-score (r/atom (or (:team2-score game) 0))]
+  (let [team1-score (r/atom (:team1-score game))
+        team2-score (r/atom (:team2-score game))]
     (fn []
-      [:tr
-       [:td (str (:time game))]
-       [:td (str (get-in game [:team1 :player1]) " / "
-                 (get-in game [:team1 :player2]))]
-       [:td (str (get-in game [:team2 :player1]) " / "
-                 (get-in game [:team2 :player2]))]
-       [:td
-        [:input.score-input
-         {:type "number"
-          :value @team1-score
-          :on-change #(reset! team1-score (.. % -target -value))}]]
-       [:td
-        [:input.score-input
-         {:type "number"
-          :value @team2-score
-          :on-change #(reset! team2-score (.. % -target -value))}]]
-       [:td
-        [:button.btn-secondary
-         {:on-click #(rf/dispatch
-                      [:submit-game-result
-                       (:id game)
-                       (js/parseInt @team1-score)
-                       (js/parseInt @team2-score)])}
-         "Save"]]])))
+      (let [{:keys [id time team1 team2]} game
+            t1p1 (or (:player1 team1) "Empty")
+            t1p2 (or (:player2 team1) "Empty")
+            t2p1 (or (:player1 team2) "Empty")
+            t2p2 (or (:player2 team2) "Empty")]
+        [:tr
+         [:td time]
+         [:td (str t1p1 " / " t1p2)]
+         [:td (str t2p1 " / " t2p2)]
+         [:td
+          [:input.score-input
+           {:type "number"
+            :value @team1-score
+            :on-change #(reset! team1-score (.. % -target -value))}]]
+         [:td
+          [:input.score-input
+           {:type "number"
+            :value @team2-score
+            :on-change #(reset! team2-score (.. % -target -value))}]]
+         [:td
+          [:button.btn-secondary
+           {:on-click #(rf/dispatch
+                        [:submit-game-result
+                         id
+                         (js/parseInt @team1-score)
+                         (js/parseInt @team2-score)])}
+           "Save"]]
+         [:td
+          ;; For user registration: choose which side to join
+          [:button.btn-primary
+           {:on-click #(rf/dispatch [:register-for-game id :team1])}
+           "Join Team1"]
+          [:button.btn-primary
+           {:on-click #(rf/dispatch [:register-for-game id :team2])}
+           "Join Team2"]]]))))
 
 (defn game-list []
   (let [games @(rf/subscribe [:games])]
     [:div
      [:div.header-bar
-      [:h2 "Today's Games"]
-      ;; Print button
+      [:h2 "Game List"]
       [:button.btn-secondary
        {:on-click #(js/window.print)}
        "Print Game List"]]
@@ -63,25 +106,47 @@
         [:th "Team 2"]
         [:th "Score T1"]
         [:th "Score T2"]
-        [:th "Action"]]]
+        [:th "Action"]
+        [:th "Register"]]]
       [:tbody
        (for [g games]
-         ^{:key (:id g)}
-         [game-row g])]]]))
+         ^{:key (:id g)} [game-row g])]]]))
+
+(defn admin-toggle-role-button []
+  [:button.btn-secondary
+   {:on-click #(rf/dispatch [:toggle-admin-role])}
+   "Toggle Admin Role"])
+
+(defn admin-panel []
+  [:div
+   [:button.btn-secondary
+    {:on-click #(rf/dispatch [:toggle-admin-role])}
+    "Toggle Admin Role"]
+   [schedule-game-panel]])
 
 (defn home-panel []
   (let [user @(rf/subscribe [:user])
+        role (:role user)
         email (:email user)
-        name (some-> email (str/split #"\.") first)]
+        first_name (some-> email (str/split #"\.") first)]
     [:div
-     [:h3 "Welcome!"]
-     [:p (str "Hello, " (or name "anonymous user"))]
-     ;; display their current rating if fetched from :players
+     [:div.header-bar
+      [:h2 (str "Welcome, " (or first_name "anonymous"))]
+      ;; Logout button
+      [:button.btn-secondary
+       {:on-click #(rf/dispatch [:logout])}
+       "Logout"]]
+     [date-selector]
+     (when (= role "admin")
+       [admin-panel])
      [game-list]]))
 
 (defn main-panel []
-  (let [user @(rf/subscribe [:user])]
+  (let [user @(rf/subscribe [:user])
+        loading? @(rf/subscribe [:loading?])]
     [:div
-     (if user
-       [home-panel]
-       [login-panel])]))
+     (if loading?
+       [:div "Loading..."]
+       (if user
+         [home-panel]
+         [login-panel]))]))
