@@ -50,7 +50,8 @@
     :dispatch-n [
                 [:load-user-details uid]
                 [:load-all-users]
-                 ]}))
+                ;; also load today's games
+                 [:load-games-for-date (-> (js/Date.) .toISOString (subs 0 10))]]}))
 
 (rf/reg-event-fx
  :load-user-details

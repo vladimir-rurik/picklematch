@@ -13,9 +13,10 @@
    [:button.btn-primary
     {:on-click #(rf/dispatch [:sign-in-with-google])}
     "Sign in with Google"]
-   [:button.btn-primary
-    {:on-click #(rf/dispatch [:sign-in-with-facebook])}
-    "Sign in with Facebook"]])
+  ;;  [:button.btn-primary
+  ;;   {:on-click #(rf/dispatch [:sign-in-with-facebook])}
+  ;;   "Sign in with Facebook"]
+   ])
 
 (defn schedule-game-panel []
   (let [date-str (r/atom "")
@@ -56,10 +57,10 @@
   (let [players @(rf/subscribe [:players]) ; {uid {:email ... :rating ...}}
         user-map (get players uid)
         email    (:email user-map)]
-    (some-> email (str/split #"\.") first)
-    ;; (some-> email
-    ;;         (str/split #"@")
-    ;;         first)
+    ;; (some-> email (str/split #"\.") first)
+    (some-> email
+            (str/split #"@")
+            first)
     ))
 
 (defn game-row [game]
@@ -135,19 +136,25 @@
 
 (defn admin-panel []
   [:div
-   [:button.btn-secondary
-    {:on-click #(rf/dispatch [:toggle-admin-role])}
-    "Toggle Admin Role"]
+  ;;  [:button.btn-secondary
+  ;;   {:on-click #(rf/dispatch [:toggle-admin-role])}
+  ;;   "Toggle Admin Role"]
    [schedule-game-panel]])
 
 (defn home-panel []
   (let [user @(rf/subscribe [:user])
         role (:role user)
         email (:email user)
-        first_name (some-> email (str/split #"\.") first)]
+        first_name (some-> email (str/split #"@") first) ;; #"\." to split email into parts
+        players   @(rf/subscribe [:players])
+        uid       (:uid user)
+        ;; Get the user's rating from the players map
+        rating    (get-in players [uid :rating])]
+    (js/console.log "User role:" role) 
+    (js/console.log "User rating:" rating)
     [:div
      [:div.header-bar
-      [:h2 (str "Welcome, " (or first_name "anonymous"))]
+      [:h2 (str "Welcome, " (or first_name "anonymous") (when rating (str " (" rating ")")))]
       ;; Logout button
       [:button.btn-secondary
        {:on-click #(rf/dispatch [:logout])}
