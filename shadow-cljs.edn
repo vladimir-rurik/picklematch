@@ -14,4 +14,12 @@
    :asset-path "/js"
    :modules    {:main {:init-fn picklematch.core/init}}
    :devtools   {:http-root "resources/public"
-                :http-port 3000}}}}
+                :http-port 3000} 
+   :closure-defines
+      {picklematch.config/FIREBASE_API_KEY             #shadow/env "PUBLIC_FIREBASE_API_KEY"
+       picklematch.config/FIREBASE_AUTH_DOMAIN         #shadow/env "PUBLIC_FIREBASE_AUTH_DOMAIN"
+       picklematch.config/FIREBASE_PROJECT_ID          #shadow/env "PUBLIC_FIREBASE_PROJECT_ID"
+       picklematch.config/FIREBASE_STORAGE_BUCKET      #shadow/env "PUBLIC_FIREBASE_STORAGE_BUCKET"
+       picklematch.config/FIREBASE_MESSAGING_SENDER_ID #shadow/env "PUBLIC_FIREBASE_MESSAGING_SENDER_ID"
+       picklematch.config/FIREBASE_APP_ID              #shadow/env "PUBLIC_FIREBASE_APP_ID"}
+   }}}

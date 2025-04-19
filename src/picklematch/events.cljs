@@ -47,7 +47,11 @@
    (fb/store-user-if-new! uid email)
    {:db (assoc db :user {:uid uid
                          :email email})
-    :dispatch [:load-user-details uid]}))
+    :dispatch-n [
+                [:load-user-details uid]
+                [:load-all-users]
+                ;; also load today's games
+                 [:load-games-for-date (-> (js/Date.) .toISOString (subs 0 10))]]}))
 
 (rf/reg-event-fx
  :load-user-details
@@ -195,6 +199,28 @@
  :firebase/store-game-score
  (fn [[updated-game]]
    (fb/store-game-score! updated-game)))
+
+(rf/reg-fx
+ :firebase/load-all-users
+ (fn [_]
+   (fb/load-all-users!
+    (fn [users-map]
+      (rf/dispatch [:all-users-loaded users-map]))
+    (fn [err]
+      (js/console.error "Error loading all users" err)
+      (rf/dispatch [:all-users-loaded {}])))))
+
+(rf/reg-event-fx
+ :load-all-users
+ (fn [{:keys [db]} _]
+   {:db db
+    :firebase/load-all-users true}))
+
+(rf/reg-event-db
+ :all-users-loaded
+ (fn [db [_ users-map]]
+   (assoc db :players users-map)))
+
 
 ;; ---------------------------
 ;; Logout Event
