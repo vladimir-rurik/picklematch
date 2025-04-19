@@ -31,3 +31,4 @@ profiles.clj
 node_modules/
 resources/public/js/
 src/picklematch/config.cljs
+.env
