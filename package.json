@@ -1,9 +1,7 @@
 {
     "scripts": {
       "watch":   "dotenv -e .env -- shadow-cljs watch app",
-      "release": "dotenv -e .env -- shadow-cljs release app",
-      "build":   "shadow-cljs release app",
-      "deploy":  "dotenv -e .env -- shadow-cljs release app && firebase deploy --only hosting"
+      "build":   "shadow-cljs release app"
     },
     "devDependencies": {
         "dotenv-cli": "^8.0.0",
