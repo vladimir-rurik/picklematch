@@ -49,15 +49,16 @@ Make sure you’ve created a **Web App** in Firebase (Project Settings → Gener
    ```bash
    npm install
    ```
-3. Open `src/picklematch/config.cljs` (or similar config file) and update **Firebase config** with your project details:
+3. PickleMatch relies on compile‑time injection via shadow‑cljs #shadow/env + ****goog‑define.:
    ```clojure
-   (defonce firebase-config
-     {:apiKey            "YOUR-API-KEY"
-      :authDomain        "your-app.firebaseapp.com"
-      :projectId         "your-app"
-      :storageBucket     "your-app.appspot.com"
-      :messagingSenderId "123456789"
-      :appId             "1:123456789:web:abcdefg"})
+      PUBLIC_FIREBASE_API_KEY=AIza....
+      PUBLIC_FIREBASE_AUTH_DOMAIN=pickle-...
+      PUBLIC_FIREBASE_PROJECT_ID=pickle-...
+      PUBLIC_FIREBASE_STORAGE_BUCKET=pickle-....
+      PUBLIC_FIREBASE_MESSAGING_SENDER_ID=352....
+      PUBLIC_FIREBASE_APP_ID=1:352...
+
+      npx dotenv -e .env -- shadow-cljs watch app
    ```
 4. Ensure **Google Sign-in** and **Facebook Sign-in** are **enabled** in the Firebase Console:
    - **Build → Authentication → Sign-in method**.
@@ -105,7 +106,7 @@ Make sure you’ve created a **Web App** in Firebase (Project Settings → Gener
 ## Project Structure
 
 ```
-my-picklematch/
+picklematch/
 ├── shadow-cljs.edn         ; Shadow-CLJS config (build targets, output paths, etc.)
 ├── package.json            ; npm dependencies and scripts
 ├── resources/
