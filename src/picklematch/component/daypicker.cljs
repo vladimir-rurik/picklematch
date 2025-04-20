@@ -12,40 +12,38 @@
 
 
 (defn daypicker-component []
-  (let [all-game-dates @(rf/subscribe [:all-game-dates])  ;; e.g. #{"2025-05-01" "2025-05-03"}
-        selected-date  @(rf/subscribe [:selected-date])]   ;; a js/Date or nil
+  (let [all-game-dates @(rf/subscribe [:all-game-dates])
+        selected-date  @(rf/subscribe [:selected-date])
+        sel-str (when selected-date (date->yyyy-mm-dd selected-date))]
     (r/create-element
      DayPicker
      #js {:showOutsideDays false
-          :styles #js
-                   {:day
-                    (fn [dayObj _modifiers]
-                      (let [js-date (aget dayObj "date")
-                            day-str (date->yyyy-mm-dd js-date)
-                            sel-str (date->yyyy-mm-dd selected-date) ;; selected date as string
-                            ;; Check if the day has a game scheduled
-                            has-game (contains? all-game-dates day-str)]
-                        ;; Debug logs here:
-                        (js/console.log "day-str:" day-str "sel-str:" sel-str "has-game:" has-game)
 
-                        (cond
-                          ;; If this day is the selected date, color it blue
-                          (= day-str sel-str)
-                          #js {:backgroundColor "lightblue"}
+          :modifiers
+          #js {:hasGame
+               (fn [date]
+                 (contains? all-game-dates (date->yyyy-mm-dd date)))
 
-                          ;; Otherwise, if the day has a game, color it green
-                          has-game
-                          #js {:backgroundColor "lightgreen"}
+               :selected
+               (fn [date]
+                 (= (date->yyyy-mm-dd date) sel-str))
 
-                          :else
-                          #js {})))}
+               :selectedHasGame
+               (fn [date]
+                 (let [day-str (date->yyyy-mm-dd date)]
+                   (and (= day-str sel-str)
+                        (contains? all-game-dates day-str))))}
 
-          ;; When the user clicks a date, we set it selected and load its games
+          :modifiersStyles
+          #js {:selectedHasGame #js {:backgroundColor "orange"}
+               :selected #js {:backgroundColor "lightblue"}
+               :hasGame #js {:backgroundColor "lightgreen"}}
+
           :onDayClick
           (fn [dayObj _modifiers _evt]
-            (let [js-date dayObj                                  ;; dayObj itself is the JS Date
-                  day-str (date->yyyy-mm-dd js-date)]             ;; convert directly to string
-              ;; Dispatch events to set the selected date and load games for that date
-              (rf/dispatch [:set-selected-date js-date])
+            (let [day-str (date->yyyy-mm-dd dayObj)]
+              (rf/dispatch [:set-selected-date dayObj])
               (rf/dispatch [:load-games-for-date day-str])))}
      nil)))
+
+
