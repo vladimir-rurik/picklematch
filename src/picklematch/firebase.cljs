@@ -194,3 +194,16 @@
                                    docs)]
                    (on-success users))))
         (.catch on-fail))))
+
+(defn load-all-game-dates!
+  [on-success on-fail]
+  (let [col-ref (firestore/collection db "games")]
+    (-> (firestore/getDocs col-ref)
+        (.then (fn [snapshot]
+                 (let [docs (.-docs snapshot)
+                       dates (map #(-> (js->clj (.data %))
+                                       (get "date")) docs)]
+                   ;; deduplicate with a set
+                   (on-success (into #{} dates)))))
+        (.catch on-fail))))
+

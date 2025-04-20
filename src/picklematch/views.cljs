@@ -2,7 +2,8 @@
   (:require
    [re-frame.core :as rf]
    [reagent.core :as r]
-   [clojure.string :as str]))
+   [clojure.string :as str]
+   [picklematch.component.daypicker :refer [daypicker-component]]))
 
 ;; --------------------
 ;; Components
@@ -13,9 +14,9 @@
    [:button.btn-primary
     {:on-click #(rf/dispatch [:sign-in-with-google])}
     "Sign in with Google"]
-  ;;  [:button.btn-primary
-  ;;   {:on-click #(rf/dispatch [:sign-in-with-facebook])}
-  ;;   "Sign in with Facebook"]
+   ;;  [:button.btn-primary
+   ;;   {:on-click #(rf/dispatch [:sign-in-with-facebook])}
+   ;;   "Sign in with Facebook"]
    ])
 
 (defn schedule-game-panel []
@@ -60,8 +61,7 @@
     ;; (some-> email (str/split #"\.") first)
     (some-> email
             (str/split #"@")
-            first)
-    ))
+            first)))
 
 (defn game-row [game]
   (let [team1-score (r/atom (:team1-score game))
@@ -136,9 +136,9 @@
 
 (defn admin-panel []
   [:div
-  ;;  [:button.btn-secondary
-  ;;   {:on-click #(rf/dispatch [:toggle-admin-role])}
-  ;;   "Toggle Admin Role"]
+   ;;  [:button.btn-secondary
+   ;;   {:on-click #(rf/dispatch [:toggle-admin-role])}
+   ;;   "Toggle Admin Role"]
    [schedule-game-panel]])
 
 (defn home-panel []
@@ -150,7 +150,7 @@
         uid       (:uid user)
         ;; Get the user's rating from the players map
         rating    (get-in players [uid :rating])]
-    (js/console.log "User role:" role) 
+    (js/console.log "User role:" role)
     (js/console.log "User rating:" rating)
     [:div
      [:div.header-bar
@@ -159,7 +159,8 @@
       [:button.btn-secondary
        {:on-click #(rf/dispatch [:logout])}
        "Logout"]]
-     [date-selector]
+    ;;  [date-selector]
+     [daypicker-component]
      (when (= role "admin")
        [admin-panel])
      [game-list]]))

@@ -50,6 +50,8 @@
     :dispatch-n [
                 [:load-user-details uid]
                 [:load-all-users]
+                ;; load all game dates
+                [:load-all-game-dates]
                 ;; also load today's games
                  [:load-games-for-date (-> (js/Date.) .toISOString (subs 0 10))]]}))
 
@@ -124,6 +126,7 @@
 (rf/reg-event-fx
  :load-games-for-date
  (fn [{:keys [db]} [_ date-str]]
+   (js/console.log "Loading games for date:" date-str)
    {:db (assoc db :loading? true)
     :firebase/load-games-for-date [date-str true]}))
 
@@ -237,3 +240,32 @@
  :firebase/logout
  (fn [_]
    (fb/logout)))
+
+;; ------------------------------
+;; -- Load all game dates
+;; ------------------------------
+;; This event is triggered when the app loads to fetch all game dates
+(rf/reg-event-fx
+ :load-all-game-dates
+ (fn [{:keys [db]} _]
+   {:db (assoc db :loading? true)
+    :firebase/load-all-game-dates true}))
+
+(rf/reg-fx
+ :firebase/load-all-game-dates
+ (fn [_]
+   ;; You must define this in firebase.cljs:
+   ;; It fetches distinct dates from "games" collection
+   (fb/load-all-game-dates!
+    (fn [dates]
+      (rf/dispatch [:all-game-dates-loaded dates]))
+    (fn [err]
+      (js/console.error "Error loading game dates:" err)
+      (rf/dispatch [:all-game-dates-loaded #{}])))))
+
+(rf/reg-event-db
+ :all-game-dates-loaded
+ (fn [db [_ dates]]
+   (-> db
+       (assoc :loading? false)
+       (assoc :all-game-dates (set dates)))))  ;; store as a set of strings (e.g. #{"2025-04-17" ...})

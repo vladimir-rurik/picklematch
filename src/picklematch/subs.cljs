@@ -26,3 +26,8 @@
  :loading?
  (fn [db _]
    (:loading? db)))
+
+(rf/reg-sub
+ :all-game-dates
+ (fn [db _]
+   (:all-game-dates db)))
