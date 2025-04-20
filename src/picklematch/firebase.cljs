@@ -1,6 +1,6 @@
 (ns picklematch.firebase
   (:require
-   [picklematch.config :refer [firebase-config]]
+   [picklematch.config :as cfg]
    ["firebase/app" :refer [initializeApp getApps]]
    ["firebase/auth" :refer [getAuth
                             GoogleAuthProvider
@@ -15,7 +15,13 @@
 ;; ---------------------------------------------------------
 (defonce app
   (if (empty? (getApps))
-    (initializeApp (clj->js firebase-config))
+    (initializeApp
+     #js {:apiKey            cfg/FIREBASE_API_KEY
+          :authDomain        cfg/FIREBASE_AUTH_DOMAIN
+          :projectId         cfg/FIREBASE_PROJECT_ID
+          :storageBucket     cfg/FIREBASE_STORAGE_BUCKET
+          :messagingSenderId cfg/FIREBASE_MESSAGING_SENDER_ID
+          :appId             cfg/FIREBASE_APP_ID})
     (first (getApps))))
 
 (js/console.log "Firebase apps so far:" (getApps))
