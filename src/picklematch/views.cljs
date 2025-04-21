@@ -11,7 +11,8 @@
 
 (defn email-password-login-panel []
   (let [email (r/atom "")
-        pass  (r/atom "")]
+        pass  (r/atom "")
+        error (r/atom nil)]  ;; Error message atom
     (fn []
       [:div
        [:h4 "Email/Password Auth"]
@@ -27,13 +28,25 @@
           :placeholder "Enter password"
           :value @pass
           :on-change #(reset! pass (-> % .-target .-value))}]]
+       (when @error
+         [:div.error-message @error])  ;; Show any error message
        ;; Buttons
        [:button.btn-primary
-        {:on-click #(rf/dispatch [:register-with-email @email @pass])}
+        {:on-click (fn []
+                     (if (< (count @pass) 6)
+                       (reset! error "Password must be at least 6 characters")
+                       (do
+                         (reset! error nil)
+                         (rf/dispatch [:register-with-email @email @pass]))))}
         "Register"]
        [:button.btn-secondary
-        {:on-click #(rf/dispatch [:sign-in-with-email @email @pass])}
-        "Sign In"]])))
+        {:on-click (fn []
+                     (if (< (count @pass) 6)
+                       (reset! error "Password must be at least 6 characters")
+                       (do
+                         (reset! error nil)
+                         (rf/dispatch [:sign-in-with-email @email @pass]))))}
+        "Login"]])))
 
 (defn email-link-login-panel []
   (let [email (r/atom "")]
