@@ -8,6 +8,46 @@
 ;; --------------------
 ;; Components
 ;; --------------------
+
+(defn email-password-login-panel []
+  (let [email (r/atom "")
+        pass  (r/atom "")]
+    (fn []
+      [:div
+       [:h4 "Email/Password Auth"]
+       [:div
+        [:input
+         {:type "email"
+          :placeholder "Enter email"
+          :value @email
+          :on-change #(reset! email (-> % .-target .-value))}]]
+       [:div
+        [:input
+         {:type "password"
+          :placeholder "Enter password"
+          :value @pass
+          :on-change #(reset! pass (-> % .-target .-value))}]]
+       ;; Buttons
+       [:button.btn-primary
+        {:on-click #(rf/dispatch [:register-with-email @email @pass])}
+        "Register"]
+       [:button.btn-secondary
+        {:on-click #(rf/dispatch [:sign-in-with-email @email @pass])}
+        "Sign In"]])))
+
+(defn email-link-login-panel []
+  (let [email (r/atom "")]
+    (fn []
+      [:div
+       [:h4 "Email Link Sign In"]
+       [:input {:type "email"
+                :placeholder "Enter email"
+                :value @email
+                :on-change #(reset! email (-> % .-target .-value))}]
+       [:button
+        {:on-click #(rf/dispatch [:send-email-link @email])}
+        "Send Sign-In Link"]])))
+
 (defn login-panel []
   [:div.login
    [:h2 "PickleMatch Login"]
@@ -17,7 +57,10 @@
    ;;  [:button.btn-primary
    ;;   {:on-click #(rf/dispatch [:sign-in-with-facebook])}
    ;;   "Sign in with Facebook"]
-   ])
+    ;; Email/Password login fields
+    [email-password-login-panel]
+   ;; Email Link login fields
+   [email-link-login-panel]])
 
 (defn schedule-game-panel []
   (let [date-str (r/atom "")
@@ -31,7 +74,7 @@
        [:br]
        [:label "Time: "]
        [:input {:type "text"
-                :placeholder "e.g. 8:00 AM"
+                :placeholder "e.g. 18:30"
                 :on-change #(reset! time-str (.. % -target -value))}]
        [:button.btn-secondary
         {:on-click #(rf/dispatch [:schedule-game @date-str @time-str])}

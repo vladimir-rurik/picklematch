@@ -2,11 +2,16 @@
   (:require
    [picklematch.config :as cfg]
    ["firebase/app" :refer [initializeApp getApps]]
-   ["firebase/auth" :refer [getAuth
-                            GoogleAuthProvider
-                            FacebookAuthProvider
-                            signInWithPopup
-                            signOut]]
+    ["firebase/auth" :refer [getAuth
+                         GoogleAuthProvider
+                         FacebookAuthProvider
+                         signInWithPopup
+                         signOut
+                         isSignInWithEmailLink
+                         signInWithEmailLink
+                         sendSignInLinkToEmail 
+                         createUserWithEmailAndPassword
+                         signInWithEmailAndPassword]]
    ["firebase/firestore" :as firestore]))
 
 
@@ -67,7 +72,7 @@
             (-> (firestore/setDoc doc-ref
                                   (clj->js {:uid uid
                                             :email email
-                                            :rating 1200
+                                            :rating 1000
                                             :role "ordinary"}))
                 (.then #(js/console.log "New user doc created for" uid))
                 (.catch #(js/console.error "Error creating user doc:" %)))
@@ -207,3 +212,65 @@
                    (on-success (into #{} dates)))))
         (.catch on-fail))))
 
+(defonce action-code-settings
+  (clj->js
+   {:url             "http://localhost:3000/finishSignIn"
+    :handleCodeInApp true}))
+
+;; ---------------------------------------------------------
+;; Email Link Sign-In
+;; ---------------------------------------------------------
+(defn is-email-link-sign-in?
+  "Checks if the current URL is an email link sign-in."
+  [url]
+  (isSignInWithEmailLink auth-inst url))
+
+(defn send-email-link!
+  "Sends a sign-in link to the given email."
+  [email]
+  (-> (sendSignInLinkToEmail auth-inst email action-code-settings)
+      (.then (fn []
+               (js/console.log "Email link sent to" email)
+               ;; Typically store email locally so you know which email you sent to
+               (js/localStorage.setItem "emailForSignIn" email)))
+      (.catch (fn [err]
+                (js/console.error "Error sending email link" err)))))
+
+;; When the user clicks the link, we'll handle sign-in:
+(defn complete-email-link-sign-in!
+  "Checks if the current URL is an email link sign-in. If so, finalize sign-in."
+  [window-location-search-or-hash]
+  (let [url (or (.-href js/window.location) "")
+        ;; or construct from window-location-search-or-hash if needed
+        email (.getItem js/localStorage "emailForSignIn")]
+    (when (isSignInWithEmailLink auth-inst url)
+      (-> (signInWithEmailLink auth-inst email url)
+          (.then (fn [result]
+                   (js/console.log "Email link sign-in success!" result)
+                   ;; Clear localStorage
+                   (js/localStorage.removeItem "emailForSignIn")
+                   ;; At this point, user is authenticated in Firebase Auth.
+                   ;; You can dispatch re-frame event, store user doc, etc.
+                   ))
+          (.catch (fn [err]
+                    (js/console.error "Error completing email link sign-in" err)))))))
+
+;; --------
+;; Create user with email+pass
+;; --------
+(defn create-user-with-email!
+  [email password on-success on-fail]
+  (-> (createUserWithEmailAndPassword auth-inst email password)
+      (.then (fn [cred]  ;; cred is a UserCredential object
+               (on-success cred)))
+      (.catch on-fail)))
+
+;; --------
+;; Sign in existing user with email+pass
+;; --------
+(defn sign-in-with-email!
+  [email password on-success on-fail]
+  (-> (signInWithEmailAndPassword auth-inst email password)
+      (.then (fn [cred]
+               (on-success cred)))
+      (.catch on-fail)))

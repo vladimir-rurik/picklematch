@@ -34,5 +34,6 @@
 
 (defn init []
   (rf/dispatch-sync [:initialize])
+  (rf/dispatch [:check-email-link])  ;; Check if we have an email link sign-in
   (listen-for-auth-changes)
   (mount-root))

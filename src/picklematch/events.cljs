@@ -269,3 +269,82 @@
    (-> db
        (assoc :loading? false)
        (assoc :all-game-dates (set dates)))))  ;; store as a set of strings (e.g. #{"2025-04-17" ...})
+
+;; ------------------------------
+;; -- Send email link for sign-in
+;; ------------------------------
+;; This event is triggered when the user enters their email and clicks "Send Sign-In Link"
+
+(rf/reg-event-fx
+ :send-email-link
+ (fn [{:keys [db]} [_ email]]
+   (js/console.log "Sending email link to" email)
+   {:db db
+    :firebase/send-email-link email}))
+
+(rf/reg-fx
+ :firebase/send-email-link
+ (fn [email]
+   (picklematch.firebase/send-email-link! email)))
+
+
+(rf/reg-event-fx
+ :check-email-link
+ (fn [{:keys [db]} _]
+   ;; Called e.g. at app startup or on a special route
+   {:db db
+    :firebase/complete-email-link-sign-in true}))
+
+(rf/reg-fx
+ :firebase/complete-email-link-sign-in
+ (fn [_]
+   (picklematch.firebase/complete-email-link-sign-in!
+    (.-search js/window.location))))
+;; or pass (.-href js/window.location), depending on how you handle the URL
+
+;; -- Register a new user --
+(rf/reg-event-fx
+ :register-with-email
+ (fn [{:keys [db]} [_ email password]]
+   {:db db
+    :firebase/create-email-user [email password]}))
+
+(rf/reg-fx
+ :firebase/create-email-user
+ (fn [[email password]]
+   (fb/create-user-with-email!
+    email
+    password
+    (fn [cred]
+      (js/console.log "Created user with email/password" cred)
+      ;; Possibly store doc if new
+      (let [uid (.-uid (.-user cred))
+            email (.-email (.-user cred))]
+        (fb/store-user-if-new! uid email)  ;; e.g. your existing function
+        ;; After success, dispatch :login-success or rely on onAuthStateChanged
+        (rf/dispatch [:login-success {:uid uid :email email}])))
+    (fn [err]
+      (js/console.error "Error creating user:" err)))))
+
+
+;; -- Sign in existing user --
+(rf/reg-event-fx
+ :sign-in-with-email
+ (fn [{:keys [db]} [_ email password]]
+   {:db db
+    :firebase/sign-in-email [email password]}))
+
+(rf/reg-fx
+ :firebase/sign-in-email
+ (fn [[email password]]
+   (fb/sign-in-with-email!
+    email
+    password
+    (fn [cred]
+      (js/console.log "Signed in with email/password" cred)
+      (let [uid (.-uid (.-user cred))
+            email (.-email (.-user cred))]
+        (rf/dispatch [:login-success {:uid uid :email email}])))
+    (fn [err]
+      (js/console.error "Error signing in user:" err)))))
+
