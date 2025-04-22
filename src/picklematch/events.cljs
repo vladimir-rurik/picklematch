@@ -9,6 +9,7 @@
 (rf/reg-event-db
  :initialize
  (fn [_ _]
+   (js/console.log "Initializing app-db")
    {:user nil
     :players {}
     :games []
@@ -317,15 +318,14 @@
     password
     (fn [cred]
       (js/console.log "Created user with email/password" cred)
-      ;; Possibly store doc if new
-      (let [uid (.-uid (.-user cred))
-            email (.-email (.-user cred))]
-        (fb/store-user-if-new! uid email)  ;; e.g. your existing function
-        ;; After success, dispatch :login-success or rely on onAuthStateChanged
-        (rf/dispatch [:login-success {:uid uid :email email}])))
+      ;; Optionally dispatch a success event, or rely on onAuthStateChanged
+      (rf/dispatch [:login-success
+                    {:uid (.-uid (.-user cred))
+                     :email (.-email (.-user cred))}]))
     (fn [err]
-      (js/console.error "Error creating user:" err)))))
-
+      (js/console.error "Error creating user:" err)
+      (let [code (.-code err)]  ;; e.g. "auth/email-already-in-use"
+        (rf/dispatch [:auth-error code]))))))
 
 ;; -- Sign in existing user --
 (rf/reg-event-fx
@@ -341,10 +341,55 @@
     email
     password
     (fn [cred]
+      ;; On success:
       (js/console.log "Signed in with email/password" cred)
-      (let [uid (.-uid (.-user cred))
-            email (.-email (.-user cred))]
-        (rf/dispatch [:login-success {:uid uid :email email}])))
+      (rf/dispatch [:login-success {:uid (.-uid (.-user cred))
+                                    :email (.-email (.-user cred))}]))
     (fn [err]
-      (js/console.error "Error signing in user:" err)))))
+      ;; On error:
+      (js/console.error "Error signing in user:" err)
+      (let [code (.-code err)]
+        ;; Dispatch an event to store error in db:
+        (rf/dispatch [:auth-error code]))))))
 
+
+;; Now define an event to handle auth errors:
+
+;; (rf/reg-event-db
+;;  :show-auth-error
+;;  (fn [db [_ code]]
+;;    ;; We'll store a user-friendly string in db under :auth-error
+;;    (assoc db :auth-error
+;;           (case code
+;;             "auth/email-already-in-use"
+;;             "This email is already registered. Please sign in or use another email."
+
+;;             "auth/weak-password"
+;;             "Your password must be at least 6 characters long."
+
+;;             "auth/invalid-login-credentials"
+;;             ;; This code is not an official one from Firebase by default,
+;;             ;; but your logs show it. Possibly "auth/wrong-password" or "auth/user-not-found".
+;;             "Invalid email or password. Please try again."
+
+;;             "auth/wrong-password"
+;;             "Invalid email or password. Please try again."
+
+;;             "auth/user-not-found"
+;;             "No account exists for this email. Please register first."
+
+;;             ;; Fallback
+;;             (str "Something went wrong: " code)))))
+
+(rf/reg-event-db
+ :auth-error
+ (fn [db [_ code]]
+   (let [msg (case code
+               "auth/email-already-in-use"   "That email is already registered."
+               "auth/weak-password"          "Password must be at least 6 characters."
+               "auth/invalid-login-credentials" "Invalid email/password. Please try again."
+               "auth/user-not-found"         "No account found for that email."
+               "auth/missing-password"       "You must enter a password."
+               "Something went wrong.")]
+      (js/console.log "Setting :auth-error in db to:" msg)
+     (assoc db :auth-error msg))))
