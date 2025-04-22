@@ -8,45 +8,65 @@
 ;; --------------------
 ;; Components
 ;; --------------------
-
 (defn email-password-login-panel []
   (let [email (r/atom "")
         pass  (r/atom "")
-        error (r/atom nil)]  ;; Error message atom
+        ;; A local atom to track the current error
+        local-error (r/atom nil)]
     (fn []
-      [:div
-       [:h4 "Email/Password Auth"]
-       [:div
-        [:input
-         {:type "email"
-          :placeholder "Enter email"
-          :value @email
-          :on-change #(reset! email (-> % .-target .-value))}]]
-       [:div
-        [:input
-         {:type "password"
-          :placeholder "Enter password"
-          :value @pass
-          :on-change #(reset! pass (-> % .-target .-value))}]]
-       (when @error
-         [:div.error-message @error])  ;; Show any error message
-       ;; Buttons
-       [:button.btn-primary
-        {:on-click (fn []
-                     (if (< (count @pass) 6)
-                       (reset! error "Password must be at least 6 characters")
-                       (do
-                         (reset! error nil)
-                         (rf/dispatch [:register-with-email @email @pass]))))}
-        "Register"]
-       [:button.btn-secondary
-        {:on-click (fn []
-                     (if (< (count @pass) 6)
-                       (reset! error "Password must be at least 6 characters")
-                       (do
-                         (reset! error nil)
-                         (rf/dispatch [:sign-in-with-email @email @pass]))))}
-        "Login"]])))
+      ;; Subscribe to the global auth-error each render
+      (let [global-error @(rf/subscribe [:auth-error])]
+
+        ;; If global-error changed from what we have in local-error,
+        ;; we reset local-error and optionally do something with email/pass
+        (when (not= @local-error global-error)
+          (reset! local-error global-error)
+          (when global-error
+            ;; For example, clear the password if there's an error
+            (reset! pass "")))
+
+        ;; Now render the UI
+        [:div
+         ;; Show the local-error if present
+         (when @local-error
+           [:div
+            {:style {:background "#f8d7da"
+                     :color "#721c24"
+                     :border "1px solid #f5c6cb"
+                     :padding "0.75rem"
+                     :borderRadius "4px"
+                     :marginBottom "1rem"}}
+            @local-error])
+
+         [:div
+          [:h4 "Email/Password Sign In"]
+          [:div
+           [:input {:type "email"
+                    :placeholder "Enter email"
+                    :value @email
+                    :on-change #(reset! email (-> % .-target .-value))}]]
+          [:div
+           [:input {:type "password"
+                    :placeholder "Enter password"
+                    :value @pass
+                    :on-change #(reset! pass (-> % .-target .-value))}]]]
+
+         ;; Register button
+         [:button.btn-primary
+          {:on-click (fn []
+                       ;; Optionally you can clear the local error here
+                       (reset! local-error nil)
+                       ;; Dispatch the register event
+                       (rf/dispatch [:register-with-email @email @pass]))}
+          "Register"]
+
+         ;; Sign In button
+         [:button.btn-secondary
+          {:on-click (fn []
+                       (reset! local-error nil)
+                       (rf/dispatch [:sign-in-with-email @email @pass]))}
+          "Sign In"]]))))
+
 
 (defn email-link-login-panel []
   (let [email (r/atom "")]

@@ -31,3 +31,8 @@
  :all-game-dates
  (fn [db _]
    (:all-game-dates db)))
+
+(rf/reg-sub
+ :auth-error
+ (fn [db _]
+   (:auth-error db)))
