@@ -386,6 +386,7 @@
  (fn [db [_ code]]
    (let [msg (case code
                "auth/email-already-in-use"   "That email is already registered."
+               "auth/invalid-email" "Your email address appears invalid. Please try again."
                "auth/weak-password"          "Password must be at least 6 characters."
                "auth/invalid-login-credentials" "Invalid email/password. Please try again."
                "auth/user-not-found"         "No account found for that email."

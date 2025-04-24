@@ -217,6 +217,16 @@
    ;;   "Toggle Admin Role"]
    [schedule-game-panel]])
 
+(defn verify-email-panel []
+  [:div
+   [:h2 "Please verify your email"]
+   [:p "A verification link has been sent to your inbox. Once verified, refresh or sign in again."]
+   ;; Optional: a button to re-send the link
+   [:button.btn-secondary
+    {:on-click #(js/alert "TODO: dispatch an event to re-send verification link")}
+    "Re-send verification"]])
+
+
 (defn home-panel []
   (let [user @(rf/subscribe [:user])
         role (:role user)
@@ -245,8 +255,15 @@
   (let [user @(rf/subscribe [:user])
         loading? @(rf/subscribe [:loading?])]
     [:div
-     (if loading?
+     (cond
+       loading?
        [:div "Loading..."]
-       (if user
-         [home-panel]
-         [login-panel]))]))
+
+       (nil? user)
+       [login-panel]
+
+       (false? (.-emailVerified user))
+       [verify-email-panel]
+
+       :else
+       [home-panel])]))

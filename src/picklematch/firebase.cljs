@@ -1,6 +1,7 @@
 (ns picklematch.firebase
   (:require
    [picklematch.config :as cfg]
+   [re-frame.core :as rf]
    ["firebase/app" :refer [initializeApp getApps]]
     ["firebase/auth" :refer [getAuth
                          GoogleAuthProvider
@@ -11,7 +12,8 @@
                          signInWithEmailLink
                          sendSignInLinkToEmail 
                          createUserWithEmailAndPassword
-                         signInWithEmailAndPassword]]
+                         signInWithEmailAndPassword
+                         sendEmailVerification]]
    ["firebase/firestore" :as firestore]))
 
 
@@ -259,11 +261,29 @@
 ;; Create user with email+pass
 ;; --------
 (defn create-user-with-email!
+  "Creates a user, then only calls on-success if the verification email is sent.
+   If sending verification fails, you can optionally delete the user or just call on-fail."
   [email password on-success on-fail]
   (-> (createUserWithEmailAndPassword auth-inst email password)
-      (.then (fn [cred]  ;; cred is a UserCredential object
-               (on-success cred)))
-      (.catch on-fail)))
+      (.then (fn [cred]
+               (let [user (.-user cred)]
+                 ;; Attempt to send verification
+                 (-> (sendEmailVerification user)
+                     (.then (fn []
+                              (js/console.log "Verification email sent to" (.-email user))
+                              ;; Only now do we call on-success
+                              (on-success cred)))
+                     (.catch (fn [v-err]
+                               (js/console.error "Error sending verification link:" v-err)
+                               ;; OPTIONAL: if you want to remove them from Auth, do:
+                               (-> (.delete user)
+                                   (.then #(js/console.log "Deleted user due to failed verification email."))
+                                   (.catch #(js/console.error "Failed to delete user:" %)))
+                               (on-fail v-err)))))))
+      (.catch (fn [err]
+                (js/console.error "Error creating user:" err)
+                (on-fail err)))))
+
 
 ;; --------
 ;; Sign in existing user with email+pass
