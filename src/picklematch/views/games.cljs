@@ -67,11 +67,22 @@
      ) ; <-- Add closing parenthesis for anonymous function (fn [])
    ) ; <-- Add closing parenthesis for outer let
 
+(defn format-date-iso [date-obj]
+  (when date-obj
+    (let [year (.getFullYear date-obj)
+          month-raw (inc (.getMonth date-obj)) ; Month is 0-indexed
+          day-raw (.getDate date-obj)
+          month (if (< month-raw 10) (str "0" month-raw) (str month-raw)) ; Manual padding
+          day (if (< day-raw 10) (str "0" day-raw) (str day-raw))] ; Manual padding
+      (str year "-" month "-" day))))
+
 (defn game-list []
-  (let [games @(rf/subscribe [:games])]
+  (let [games @(rf/subscribe [:games])
+        selected-date @(rf/subscribe [:selected-date]) ; Subscribe to selected date
+        formatted-date (format-date-iso selected-date)]
     [:div#game-list-container ; Add ID for print targeting
      [:div.header-bar
-      [:h2 "Game List"]
+      [:h2 (str "Game List" (when formatted-date (str " for " formatted-date)))] ; Update title
       [:button.btn-secondary.no-print {:on-click #(js/window.print)} ; Add no-print class to button
        "Print Game List"]]
      [:table
