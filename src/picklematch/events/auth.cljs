@@ -9,6 +9,7 @@
  :sign-in-with-google
  (fn [{:keys [db]} _]
    {:db db
+    :dispatch [:clear-auth-states]
     :firebase/google-sign-in true}))
 
 (rf/reg-fx
@@ -21,6 +22,7 @@
  :sign-in-with-facebook
  (fn [{:keys [db]} _]
    {:db db
+    :dispatch [:clear-auth-states]
     :firebase/facebook-sign-in true}))
 
 (rf/reg-fx
@@ -33,6 +35,7 @@
  :sign-in-with-email
  (fn [{:keys [db]} [_ email password]]
    {:db db
+    :dispatch [:clear-auth-states]
     :firebase/sign-in-email [email password]}))
 
 (rf/reg-fx
@@ -55,7 +58,9 @@
    ;; if not done already, store-user-if-new! with default active=true
    ;; for example, if user is from Google sign in or Email Link sign in.
    (fbf/store-user-if-new! uid email) ; by default active=true
-   {:db (assoc db :user {:uid uid :email email})
+   {:db (assoc db :user {:uid uid :email email}
+               :auth-error nil    ;; Clear any errors
+               :auth-message nil) ;; Clear any messages
     :dispatch-n [[:load-user-details uid]
                  [:load-all-users]
                  [:load-all-game-dates]
@@ -109,7 +114,8 @@
  :logout
  (fn [{:keys [db]} _]
    {:db (assoc db :user nil)
-    :firebase/logout true}))
+    :firebase/logout true
+    :dispatch [:clear-auth-states]}))
 
 (rf/reg-fx
  :firebase/logout
@@ -121,6 +127,7 @@
  :send-email-link
  (fn [{:keys [db]} [_ email]]
    {:db db
+    :dispatch [:clear-auth-states]
     :firebase/send-email-link email}))
 
 (rf/reg-fx
@@ -137,5 +144,17 @@
 (rf/reg-fx
  :firebase/complete-email-link-sign-in
  (fn [_]
-   (fba/complete-email-link-sign-in!
-    (.-href js/window.location))))
+   (let [current-url (.-href js/window.location)]
+     (if (fba/is-email-link-sign-in? current-url)
+       (fba/complete-email-link-sign-in!
+        current-url
+        ;; Add success and failure callbacks
+        (fn [result]
+          (let [user (.-user result)
+                uid (.-uid user)
+                email (.-email user)]
+            (rf/dispatch [:login-success {:uid uid :email email}])
+            (rf/dispatch [:auth-message "Successfully signed in via email link!"])))
+        (fn [error]
+          (rf/dispatch [:auth-error (.-code error)])))
+       (js/console.log "Not a sign-in with email link")))))

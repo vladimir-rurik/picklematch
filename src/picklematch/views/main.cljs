@@ -1,7 +1,7 @@
 (ns picklematch.views.main
   (:require
    [re-frame.core :as rf]
-   [picklematch.views.login :refer [login-panel]]
+   [picklematch.views.login :refer [login-panel, verification-check-panel]]
    [picklematch.views.home :refer [home-panel]]))
 
 (defn main-panel []
@@ -23,6 +23,7 @@
           [home-panel] ;; fully active => go home
           [:div
            [:h2 "Please Verify Your Email"]
-           [:p "We have sent you a verification link by email. 
-                Once verified, reload or log in again."]
+           [:p "We have sent you a verification email.
+        Once verified, reload or log in again."]
+           [verification-check-panel] ;; Add this component
            [login-panel]])))))

@@ -35,6 +35,18 @@
    (assoc db :auth-error nil)))
 
 (rf/reg-event-db
+ :clear-auth-message
+ (fn [db _]
+   (assoc db :auth-message nil)))
+
+(rf/reg-event-db
  :auth-message
  (fn [db [_ msg]]
    (assoc db :auth-message msg)))
+
+(rf/reg-event-db
+ :clear-auth-states
+ (fn [db _]
+   (-> db
+       (assoc :auth-error nil)
+       (assoc :auth-message nil))))

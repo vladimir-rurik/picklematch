@@ -10,7 +10,7 @@
  :register-with-email
  (fn [{:keys [db]} [_ email password]]
    {:db db
-    :dispatch [:clear-auth-error]
+    :dispatch [:clear-auth-states]
     :firebase/create-email-user [email password]}))
 
 (rf/reg-fx
@@ -47,23 +47,29 @@
 (rf/reg-event-fx
  :check-verification
  (fn [{:keys [db]} _]
+   {:db (assoc db :loading? true)
+    :firebase/check-verification true}))
+
+(rf/reg-fx
+ :firebase/check-verification
+ (fn [_]
    (let [user (.-currentUser auth-inst)]
-     (when user
+     (if user
        (-> (.reload user)
            (.then (fn []
-                    (when (.-emailVerified (.-currentUser auth-inst))
-                      (rf/dispatch [:user-is-now-verified]))))
-           (.catch #(js/console.error "Error reloading user" %))))
-     {})))
+                    (rf/dispatch [:loading? false])
+                    (if (.-emailVerified user)
+                      (do
+                        (rf/dispatch [:user-is-now-verified])
+                        (rf/dispatch [:auth-message "Your email is verified!"]))
+                      (rf/dispatch [:auth-error "Your email is not yet verified. Please check your inbox."]))))
+           (.catch (fn [error]
+                     (rf/dispatch [:loading? false])
+                     (rf/dispatch [:auth-error (str "Error checking verification: " (.-message error))]))))
+       (do
+         (rf/dispatch [:loading? false])
+         (rf/dispatch [:auth-error "No user is currently signed in."]))))))
 
-(rf/reg-event-fx
- :user-is-now-verified
- (fn [{:keys [db]} _]
-   (let [uid   (get-in db [:user :uid])
-         email (get-in db [:user :email])]
-     ;; Mark Firestore doc as active=true
-     (fbf/store-user-if-new! uid email true)
-     {:db (assoc-in db [:players uid :active] true)})))
 
 (rf/reg-event-fx
  :user-verified
