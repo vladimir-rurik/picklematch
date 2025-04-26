@@ -14,13 +14,15 @@
 
 (defn game-row [game]
   (let [team1-score (r/atom (:team1-score game))
-        team2-score (r/atom (:team2-score game))]
+        team2-score (r/atom (:team2-score game))
+        is-admin?   (rf/subscribe [:is-admin?])] ; Subscribe to admin status
     (fn []
       (let [{:keys [id time team1 team2]} game
             t1p1 (or (:player1 team1) "Empty")
             t1p2 (or (:player2 team1) "Empty")
             t2p1 (or (:player1 team2) "Empty")
-            t2p2 (or (:player2 team2) "Empty")]
+            t2p2 (or (:player2 team2) "Empty")] ; <-- Corrected: Bindings vector closes here
+        ;; Body of the inner let starts here
         [:tr
          [:td time]
          [:td (str (or (user-display t1p1) "Empty")
@@ -53,7 +55,17 @@
            "Join Team1"]
           [:button.btn-primary
            {:on-click #(rf/dispatch [:register-for-game id :team2])}
-           "Join Team2"]]]))))
+           "Join Team2"]]
+         [:td ; New cell for Admin Actions
+          (when @is-admin? ; Only show if user is admin
+            [:button.btn-danger ; Use danger class for delete
+             {:on-click #(if (js/confirm (str "Are you sure you want to delete the game at " time "?"))
+                           (rf/dispatch [:delete-game id]))} ; Add confirmation
+             "Delete"])]
+         ] ; End of :tr vector
+       )) ; <-- Closing parenthesis for inner 'let'
+     ) ; <-- Add closing parenthesis for anonymous function (fn [])
+   ) ; <-- Add closing parenthesis for outer let
 
 (defn game-list []
   (let [games @(rf/subscribe [:games])]
@@ -68,10 +80,11 @@
         [:th "Time"]
         [:th "Team 1"]
         [:th "Team 2"]
-        [:th "Score T1"]
-        [:th "Score T2"]
-        [:th "Action"]
-        [:th "Register"]]]
+         [:th "Score T1"]
+         [:th "Score T2"]
+         [:th "Action"]
+         [:th "Register"]
+         [:th "Admin Action"]]] ; Add header for the new column
       [:tbody
        (for [g games]
          ^{:key (:id g)} [game-row g])]]]))

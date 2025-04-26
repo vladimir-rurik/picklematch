@@ -158,14 +158,15 @@
  (fn [{:keys [db]} [_ date-str times]]
    (let [players (->> (vals (:players db))
                       (sort-by :rating >))
-         groups  (partition 4 4 nil players)]
-     (when (seq groups)
+         groups  (partition 4 4 nil players)
+         num-games-to-create (min (count times) (count groups))] ; Calculate how many games we can actually create
+     (when (pos? num-games-to-create) ; Check if we can create at least one game
        {:db (assoc db :loading? true)
         :dispatch-n
         (map-indexed
          (fn [idx time]
            [:create-game-with-players date-str time (nth groups idx)])
-         times)}))))
+         (take num-games-to-create times))})))) ; Only map over the times we have groups for
 
 (rf/reg-event-fx
  :create-game-with-players
@@ -194,3 +195,23 @@
  :auto-assign-game-created
  (fn [db [_ game-id]]
    (update db :newly-created-games conj game-id)))
+
+;; Delete a game (Admin only)
+(rf/reg-event-fx
+ :delete-game
+ (fn [{:keys [db]} [_ game-id]]
+   ;; TODO: Add admin check here? Or rely on UI? Relying on UI for now.
+   {:db (assoc db :loading? true)
+    :firebase/delete-game game-id}))
+
+(rf/reg-fx
+ :firebase/delete-game
+ (fn [game-id]
+   (fbf/delete-game!
+    game-id
+    (fn []
+      (js/console.log "Game deleted successfully:" game-id)
+      (rf/dispatch [:reload-current-date-games])) ; Reload games for the current date
+    (fn [err]
+      (js/console.error "Error deleting game:" err)
+      (rf/dispatch [:games-loaded nil]))))) ; Clear loading state on error

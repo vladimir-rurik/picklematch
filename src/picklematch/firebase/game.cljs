@@ -80,3 +80,9 @@
     (-> (firestore/addDoc games-col (clj->js doc-data))
         (.then (fn [doc-ref] (on-success (.-id doc-ref))))
         (.catch on-fail))))
+
+(defn delete-game! [game-id on-success on-fail]
+  (let [doc-ref (firestore/doc (firestore/collection db "games") game-id)]
+    (-> (firestore/deleteDoc doc-ref)
+        (.then on-success)
+        (.catch on-fail))))

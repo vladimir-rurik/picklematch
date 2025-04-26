@@ -10,3 +10,9 @@
 (rf/reg-sub :all-game-dates (fn [db _] (:all-game-dates db)))
 (rf/reg-sub :auth-error (fn [db _] (:auth-error db)))
 (rf/reg-sub :auth-message (fn [db _] (:auth-message db)))
+
+(rf/reg-sub
+ :is-admin?
+ :<- [:user]
+ (fn [user _]
+   (= (:role user) "admin")))
