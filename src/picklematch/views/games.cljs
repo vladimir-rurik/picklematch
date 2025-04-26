@@ -41,7 +41,7 @@
            {:type "number"
             :value @team2-score
             :on-change #(reset! team2-score (.. % -target -value))}]]
-         [:td
+         [:td {:class "no-print"} ; Hide Action column cell
           [:button.btn-secondary
            {:on-click #(rf/dispatch
                         [:submit-game-result
@@ -49,14 +49,14 @@
                          (js/parseInt @team1-score)
                          (js/parseInt @team2-score)])}
            "Save"]]
-         [:td
+         [:td {:class "no-print"} ; Hide Register column cell
           [:button.btn-primary
            {:on-click #(rf/dispatch [:register-for-game id :team1])}
            "Join Team1"]
           [:button.btn-primary
            {:on-click #(rf/dispatch [:register-for-game id :team2])}
            "Join Team2"]]
-         [:td ; New cell for Admin Actions
+         [:td {:class "no-print"} ; Hide Admin Action column cell
           (when @is-admin? ; Only show if user is admin
             [:button.btn-danger ; Use danger class for delete
              {:on-click #(if (js/confirm (str "Are you sure you want to delete the game at " time "?"))
@@ -69,10 +69,10 @@
 
 (defn game-list []
   (let [games @(rf/subscribe [:games])]
-    [:div
+    [:div#game-list-container ; Add ID for print targeting
      [:div.header-bar
       [:h2 "Game List"]
-      [:button.btn-secondary {:on-click #(js/window.print)}
+      [:button.btn-secondary.no-print {:on-click #(js/window.print)} ; Add no-print class to button
        "Print Game List"]]
      [:table
       [:thead
@@ -82,9 +82,9 @@
         [:th "Team 2"]
          [:th "Score T1"]
          [:th "Score T2"]
-         [:th "Action"]
-         [:th "Register"]
-         [:th "Admin Action"]]] ; Add header for the new column
+         [:th {:class "no-print"} "Action"] ; Hide Action header
+         [:th {:class "no-print"} "Register"] ; Hide Register header
+         [:th {:class "no-print"} "Admin Action"]]] ; Hide Admin Action header
       [:tbody
        (for [g games]
          ^{:key (:id g)} [game-row g])]]]))

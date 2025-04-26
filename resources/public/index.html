@@ -92,6 +92,46 @@
         padding: 1rem;
         margin: 1rem 0;
       }
+
+      /* Print-specific styles */
+      @media print {
+        body * {
+          visibility: hidden; /* Hide everything by default */
+        }
+        #game-list-container, #game-list-container * {
+          visibility: visible; /* Show the game list container and its children */
+        }
+        #game-list-container {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 100%;
+          margin: 0;
+          padding: 0;
+          box-shadow: none;
+          border-radius: 0;
+          background: none;
+        }
+        table {
+          box-shadow: none;
+          margin-top: 0;
+        }
+        th, td {
+          border: 1px solid #ccc; /* Add borders for print */
+          padding: 0.5rem; /* Adjust padding for print */
+        }
+        .no-print {
+          display: none !important; /* Hide elements marked for no printing */
+        }
+        button {
+          display: none !important; /* Hide all buttons */
+        }
+        input.score-input {
+          border: none; /* Remove border from score inputs for cleaner print */
+          background: none;
+          text-align: center;
+        }
+      }
     </style>
   </head>
   <body>
