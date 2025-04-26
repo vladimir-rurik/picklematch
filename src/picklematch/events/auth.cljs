@@ -47,17 +47,20 @@
       (rf/dispatch
        [:login-success
         {:uid   (.-uid (.-user cred))
-         :email (.-email (.-user cred))}]))
+         :email (.-email (.-user cred))
+         :auth-method "email-password"}]))
     (fn [err]
       (rf/dispatch [:auth-error (.-code err)])))))
 
 ;; Once sign-in is successful, store user in DB & Firestore if new
 (rf/reg-event-fx
  :login-success
- (fn [{:keys [db]} [_ {:keys [uid email]}]]
-   ;; if not done already, store-user-if-new! with default active=true
-   ;; for example, if user is from Google sign in or Email Link sign in.
-   (fbf/store-user-if-new! uid email) ; by default active=true
+ (fn [{:keys [db]} [_ {:keys [uid email auth-method]}]]
+   (when (and auth-method (not= auth-method "email-password"))
+     ;; Only create new user entries with active=true for non-email-password methods
+     ;; like Google or email link (which don't require verification)
+     (fbf/store-user-if-new! uid email true))
+   
    {:db (assoc db :user {:uid uid :email email}
                :auth-error nil    ;; Clear any errors
                :auth-message nil) ;; Clear any messages
@@ -133,7 +136,11 @@
 (rf/reg-fx
  :firebase/send-email-link
  (fn [email]
-   (fba/send-email-link! email)))
+   (fba/send-email-link! email
+                         ;; Add success callback to show UI message
+                         #(rf/dispatch [:auth-message (str "Email link sent to " email)])
+                         ;; Add error callback to show error in UI
+                         #(rf/dispatch [:auth-error (.-code %)]))))
 
 (rf/reg-event-fx
  :check-email-link
@@ -153,7 +160,7 @@
           (let [user (.-user result)
                 uid (.-uid user)
                 email (.-email user)]
-            (rf/dispatch [:login-success {:uid uid :email email}])
+            (rf/dispatch [:login-success {:uid uid :email email :auth-method "email-link"}])
             (rf/dispatch [:auth-message "Successfully signed in via email link!"])))
         (fn [error]
           (rf/dispatch [:auth-error (.-code error)])))

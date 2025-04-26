@@ -15,8 +15,13 @@
  (fn [{:keys [db]} [_ user]]
    (if user
      (let [uid   (.-uid user)
-           email (.-email user)]
-       {:dispatch [:login-success {:uid uid :email email}]})
+           email (.-email user)
+           provider (.-providerId (first (.-providerData user)))]
+       {:dispatch [:login-success {:uid uid 
+                                  :email email 
+                                  :auth-method (if (.startsWith provider "password") 
+                                                "email-password" 
+                                                provider)}]})
      {:db (assoc db :user nil)})))
 
 (defn listen-for-auth-changes []

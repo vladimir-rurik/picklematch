@@ -25,6 +25,7 @@
                "auth/invalid-login-credentials"     "Invalid email/password. Please try again."
                "auth/user-not-found"                "No account found for that email."
                "auth/missing-password"              "You must enter a password."
+               "auth/quota-exceeded"                "Email limit exceeded. Please try again later."
                "invalid-confirmation-token"         "Invalid or expired confirmation token."
                "Something went wrong.")]
      (assoc db :auth-error msg))))

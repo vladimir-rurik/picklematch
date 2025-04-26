@@ -48,12 +48,18 @@
   (clj->js {:url "http://localhost:3000/finishSignIn"
             :handleCodeInApp true}))
 
-(defn send-email-link! [email]
-  (-> (sendSignInLinkToEmail auth-inst email action-code-settings)
-      (.then (fn []
-               (js/localStorage.setItem "emailForSignIn" email)
-               (js/console.log "Email link sent to" email)))
-      (.catch #(js/console.error "Error sending email link" %))))
+(defn send-email-link!
+  ([email]
+   (send-email-link! email nil nil))
+  ([email on-success on-fail]
+   (-> (sendSignInLinkToEmail auth-inst email action-code-settings)
+       (.then (fn []
+                (js/localStorage.setItem "emailForSignIn" email)
+                (js/console.log "Email link sent to" email)
+                (when on-success (on-success))))
+       (.catch (fn [err]
+                 (js/console.error "Error sending email link" err)
+                 (when on-fail (on-fail err)))))))
 
 (defn is-email-link-sign-in? [url]
   (isSignInWithEmailLink auth-inst url))
@@ -109,4 +115,3 @@
       (do
         (js/console.error "No current user to send verification to")
         (when on-fail (on-fail "No current user"))))))
-

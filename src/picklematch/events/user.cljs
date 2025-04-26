@@ -36,7 +36,7 @@
 
 
         ;; Optionally log them in right away in the UI
-        (rf/dispatch [:login-success {:uid uid :email email}])
+        (rf/dispatch [:login-success {:uid uid :email email :auth-method "email-password"}])
         (rf/dispatch [:auth-message
                       "Check your inbox to verify your email before proceeding."])))
     (fn [err]
@@ -49,6 +49,12 @@
  (fn [{:keys [db]} _]
    {:db (assoc db :loading? true)
     :firebase/check-verification true}))
+
+;; Global loading state handler
+(rf/reg-event-db
+ :loading?
+ (fn [db [_ is-loading]]
+   (assoc db :loading? is-loading)))
 
 (rf/reg-fx
  :firebase/check-verification
@@ -70,6 +76,15 @@
          (rf/dispatch [:loading? false])
          (rf/dispatch [:auth-error "No user is currently signed in."]))))))
 
+
+(rf/reg-event-fx
+ :user-is-now-verified
+ (fn [{:keys [db]} _]
+   (let [uid (get-in db [:user :uid])]
+     (if uid
+       {:db db
+        :dispatch [:user-verified uid]}
+       {:db db}))))
 
 (rf/reg-event-fx
  :user-verified
