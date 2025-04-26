@@ -143,6 +143,37 @@
                          #(rf/dispatch [:auth-error (.-code %)]))))
 
 (rf/reg-event-fx
+ :verified-sign-in
+ (fn [{:keys [db]} [_ email password]]
+   {:db db
+    :dispatch [:clear-auth-states]
+    :firebase/verified-sign-in [email password]}))
+
+(rf/reg-fx
+ :firebase/verified-sign-in
+ (fn [[email password]]
+   (fba/sign-in-with-email!
+    email password
+    (fn [cred]
+      (let [user (.-user cred)
+            uid (.-uid user)]
+        ;; First check if email is verified
+        (if (.-emailVerified user)
+          (do
+            ;; Email is verified, update active status and login
+            (rf/dispatch [:user-is-now-verified])
+            (rf/dispatch
+             [:login-success
+              {:uid uid
+               :email email
+               :auth-method "email-password"}])
+            (rf/dispatch [:auth-message "Login successful! Email verified."]))
+          ;; Email is not verified
+          (rf/dispatch [:auth-error "Your email is still not verified. Please check your inbox."]))))
+    (fn [err]
+      (rf/dispatch [:auth-error (.-code err)])))))
+
+(rf/reg-event-fx
  :check-email-link
  (fn [{:keys [db]} _]
    {:db db

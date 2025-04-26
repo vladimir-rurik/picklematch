@@ -24,6 +24,6 @@
           [:div
            [:h2 "Please Verify Your Email"]
            [:p "We have sent you a verification email.
-        Once verified, reload or log in again."]
-           [verification-check-panel] ;; Add this component
-           [login-panel]])))))
+        Once verified, please click the button below."]
+           [verification-check-panel user]
+           ])))))

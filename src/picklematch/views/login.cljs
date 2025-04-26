@@ -56,26 +56,34 @@
 (defn email-link-login-panel []
   (let [email (r/atom "")]
     (fn []
-    ;;   (let [global-error @(rf/subscribe [:auth-error])]
-        [:div.fancy-panel
-        ;;  (when global-error
-        ;;    [:div {:style {:background "#f8d7da" :color "#721c24"}} global-error])
-         [:h4 "Email Link Sign In"]
-         [:input {:type "email"
-                  :placeholder "Enter email"
-                  :value @email
-                  :on-change #(reset! email (-> % .-target .-value))}]
-         [:button.btn-primary
-          {:on-click #(rf/dispatch [:send-email-link @email])}
-          "Send Sign-In Link"]])))
+      ;;   (let [global-error @(rf/subscribe [:auth-error])]
+      [:div.fancy-panel
+       ;;  (when global-error
+       ;;    [:div {:style {:background "#f8d7da" :color "#721c24"}} global-error])
+       [:h4 "Email Link Sign In"]
+       [:input {:type "email"
+                :placeholder "Enter email"
+                :value @email
+                :on-change #(reset! email (-> % .-target .-value))}]
+       [:button.btn-primary
+        {:on-click #(rf/dispatch [:send-email-link @email])}
+        "Send Sign-In Link"]])))
 
-(defn verification-check-panel []
+(defn verification-check-panel [user]
+   (let [loading? (r/atom false)]
   [:div.fancy-panel
-   [:h4 "Email Verification"]
-   [:p "If you've already verified your email but haven't been redirected, click below:"]
+   [:h4 "Verify and Login"]
+   [:div {:style {:marginBottom "1rem"}}
+    [:strong "Email: "] (:email user)]
    [:button.btn-primary
-    {:on-click #(rf/dispatch [:check-verification])}
-    "Check Verification Status"]])
+    {:on-click (fn [_evt]
+                 (reset! loading? true)
+                 ;; Just check verification status and update active status
+                 (rf/dispatch [:check-verification-and-activate])
+                 ;; reset loading after delay
+                 (js/setTimeout #(reset! loading? false) 3000))
+     :disabled @loading?}
+    (if @loading? "Checking..." "Verify Email and Activate Account")]]))
 
 (defn login-panel []
   ;; Create component with lifecycle method

@@ -45,6 +45,12 @@
 
 ;; 5) On next sign-in or onAuthStateChanged, we check emailVerified
 (rf/reg-event-fx
+ :check-verification-and-activate
+ (fn [{:keys [db]} _]
+   {:db (assoc db :loading? true)
+    :firebase/check-verification-and-activate true}))
+
+(rf/reg-event-fx
  :check-verification
  (fn [{:keys [db]} _]
    {:db (assoc db :loading? true)
@@ -55,6 +61,31 @@
  :loading?
  (fn [db [_ is-loading]]
    (assoc db :loading? is-loading)))
+
+(rf/reg-fx
+ :firebase/check-verification-and-activate
+ (fn [_]
+   (let [user (.-currentUser auth-inst)]
+     (if user
+       (-> (.reload user)
+           (.then (fn []
+                    (rf/dispatch [:loading? false])
+                    (if (.-emailVerified user)
+                      (do
+                        ;; Email is verified, update active status and redirect to home
+                        (let [uid (.-uid user)]
+                          (rf/dispatch [:user-verified uid])
+                          (rf/dispatch [:auth-message "Email verified! You can now use the app."]))
+                        ;; Wait a moment for the status to update before redirecting
+                        (js/setTimeout #(js/window.location.reload) 1500))
+                      ;; Email is not verified yet
+                      (rf/dispatch [:auth-error "Your email is not yet verified. Please check your inbox or click the link we sent you."]))))
+           (.catch (fn [error]
+                     (rf/dispatch [:loading? false])
+                     (rf/dispatch [:auth-error (str "Error checking verification: " (.-message error))]))))
+       (do
+         (rf/dispatch [:loading? false])
+         (rf/dispatch [:auth-error "No user is currently signed in."]))))))
 
 (rf/reg-fx
  :firebase/check-verification
