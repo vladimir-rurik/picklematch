@@ -97,10 +97,14 @@
 ;; Submit game result => update ratings
 (rf/reg-event-fx
  :submit-game-result
- (fn [{:keys [db]} [_ game-id team1-score team2-score]]
+ (fn [{:keys [db]} [_ game-id team1-score1 team1-score2 team2-score1 team2-score2]]
    (let [games (:games db)
          game  (some #(when (= (:id %) game-id) %) games)
-         updated-game (assoc game :team1-score team1-score :team2-score team2-score)
+         updated-game (assoc game 
+                             :team1-score1 team1-score1 
+                             :team1-score2 team1-score2
+                             :team2-score1 team2-score1
+                             :team2-score2 team2-score2)
          new-db (update db :games
                         (fn [gs]
                           (map (fn [g] (if (= (:id g) game-id) updated-game g))
@@ -187,8 +191,10 @@
                    :time time-str
                    :team1 {:player1 p1 :player2 p2}
                    :team2 {:player1 p3 :player2 p4}
-                   :team1-score 0
-                   :team2-score 0}]
+                   :team1-score1 0
+                   :team1-score2 0
+                   :team2-score1 0
+                   :team2-score2 0}]
      {:db (assoc db :loading? true)
       :firebase/add-game-with-players doc-data})))
 

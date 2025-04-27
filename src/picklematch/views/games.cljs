@@ -30,26 +30,32 @@
          [:td (str (or (user-display t1p1) "Empty")
                    " / "
                    (or (user-display t1p2) "Empty"))]
-         [:td ; Score T1 Game 1
-          [:input.score-input
-           {:type "number"
-            :value @team1-score1
-            :on-change #(reset! team1-score1 (.. % -target -value))}]]
-         [:td ; Score T1 Game 2
-          [:input.score-input
-           {:type "number"
-            :value @team1-score2
-            :on-change #(reset! team1-score2 (.. % -target -value))}]]
-         [:td ; Score T2 Game 1
-          [:input.score-input
-           {:type "number"
-            :value @team2-score1
-            :on-change #(reset! team2-score1 (.. % -target -value))}]]
-         [:td ; Score T2 Game 2
-          [:input.score-input
-           {:type "number"
-            :value @team2-score2
-            :on-change #(reset! team2-score2 (.. % -target -value))}]]
+         [:td ; Score T1 (2 rows)
+          [:div.score-row
+           [:input.score-input
+            {:type "number"
+             :value @team1-score1
+             :placeholder "Game 1"
+             :on-change #(reset! team1-score1 (.. % -target -value))}]
+           [:input.score-input
+            {:type "number"
+             :value @team1-score2
+             :placeholder "Game 2"
+             :on-change #(reset! team1-score2 (.. % -target -value))}]]
+         ]
+         [:td ; Score T2 (2 rows)
+          [:div.score-row
+           [:input.score-input
+            {:type "number"
+             :value @team2-score1
+             :placeholder "Game 1"
+             :on-change #(reset! team2-score1 (.. % -target -value))}]
+           [:input.score-input
+            {:type "number"
+             :value @team2-score2
+             :placeholder "Game 2"
+             :on-change #(reset! team2-score2 (.. % -target -value))}]]
+         ]
          [:td ; Team 2 
           (str (or (user-display t2p1) "Empty")
                " / "
@@ -59,8 +65,10 @@
            {:on-click #(rf/dispatch
                         [:submit-game-result
                          id
-                         (js/parseInt @team1-score)
-                         (js/parseInt @team2-score)])}
+                         (js/parseInt @team1-score1)
+                         (js/parseInt @team1-score2)
+                         (js/parseInt @team2-score1)
+                         (js/parseInt @team2-score2)])}
            "Save"]]
          [:td {:class "no-print"} ; Hide Register column cell
           [:button.btn-primary
@@ -103,10 +111,8 @@
        [:tr
         [:th "Time"]
         [:th "Team 1"]
-         [:th "Score T1 G1"]
-         [:th "Score T1 G2"]
-         [:th "Score T2 G1"]
-         [:th "Score T2 G2"]
+         [:th "Score T1"]
+         [:th "Score T2"]
          [:th "Team 2"] ; Moved Header
          [:th {:class "no-print"} "Action"] ; Hide Action header
          [:th {:class "no-print"} "Register"] ; Hide Register header

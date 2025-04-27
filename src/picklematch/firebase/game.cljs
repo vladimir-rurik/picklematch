@@ -10,8 +10,10 @@
                   :time time-str
                   :team1 {:player1 nil :player2 nil}
                   :team2 {:player1 nil :player2 nil}
-                  :team1-score 0
-                  :team2-score 0}]
+                  :team1-score1 0
+                  :team1-score2 0
+                  :team2-score1 0
+                  :team2-score2 0}]
     (-> (firestore/addDoc games-collection (clj->js doc-data))
         (.then (fn [doc-ref] (on-success (.-id doc-ref))))
         (.catch on-fail))))
@@ -60,8 +62,10 @@
   (let [game-id  (:id updated-game)
         doc-ref  (firestore/doc (firestore/collection db "games") game-id)]
     (-> (firestore/updateDoc doc-ref
-                             (clj->js {:team1-score (:team1-score updated-game)
-                                       :team2-score (:team2-score updated-game)}))
+                             (clj->js {:team1-score1 (:team1-score1 updated-game)
+                                       :team1-score2 (:team1-score2 updated-game)
+                                       :team2-score1 (:team2-score1 updated-game)
+                                       :team2-score2 (:team2-score2 updated-game)}))
         (.then #(js/console.log "Updated game scores for" game-id))
         (.catch #(js/console.error "Error updating game scores:" %)))))
 
