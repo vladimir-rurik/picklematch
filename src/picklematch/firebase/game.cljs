@@ -56,7 +56,19 @@
 
                                                :else
                                                {})))))))
-        (.then on-success)
+         (.then on-success)
+         (.catch on-fail))))
+
+(defn load-game-dates-for-location! [location-id on-success on-fail]
+  (let [games-collection (firestore/collection db "games")
+        q (firestore/query games-collection
+                           (firestore/where "location-id" "==" location-id))]
+    (-> (firestore/getDocs q)
+        (.then (fn [query-snapshot]
+                 (let [docs  (.-docs query-snapshot)
+                       dates (map #(-> (js->clj (.data %)) (get "date"))
+                                  docs)]
+                   (on-success (into #{} dates))))) ; Return a set of unique dates
         (.catch on-fail))))
 
 (defn store-game-score! [updated-game]

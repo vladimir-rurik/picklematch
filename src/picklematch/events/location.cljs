@@ -20,16 +20,19 @@
       (js/console.error "Error loading locations:" err)
       (rf/dispatch [:locations-loaded []])))))
 
-(rf/reg-event-db
- :locations-loaded
- (fn [db [_ locations]]
-   (let [first-location (first locations)
-         first-location-id (when first-location (:id first-location))]
-     (-> db
-         (assoc :loading? false)
-         (assoc :locations locations)
-         ;; If no location is selected, select the first one
-         (update :selected-location-id #(or % first-location-id))))))
+ (rf/reg-event-fx ; Change to -fx to allow dispatching
+  :locations-loaded
+  (fn [{:keys [db]} [_ locations]]
+    (let [first-location (first locations)
+          first-location-id (when first-location (:id first-location))
+          selected-id (or (:selected-location-id db) first-location-id)]
+      {:db (-> db
+               (assoc :loading? false)
+               (assoc :locations locations)
+               ;; If no location is selected, select the first one
+               (assoc :selected-location-id selected-id))
+       ;; Load game dates for the selected location
+       :dispatch (when selected-id [:load-game-dates-for-location selected-id])})))
 
 ;; Initialize default locations
 (rf/reg-event-fx

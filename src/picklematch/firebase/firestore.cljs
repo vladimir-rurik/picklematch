@@ -17,5 +17,6 @@
 (def register-for-game! game/register-for-game!)
 (def store-game-score! game/store-game-score!)
 (def load-all-game-dates! game/load-all-game-dates!)
-(def add-game-with-players! game/add-game-with-players!)
-(def delete-game! game/delete-game!)
+ (def add-game-with-players! game/add-game-with-players!)
+ (def delete-game! game/delete-game!)
+ (def load-game-dates-for-location! game/load-game-dates-for-location!)

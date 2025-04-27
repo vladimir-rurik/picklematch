@@ -2,18 +2,8 @@
   (:require
    [re-frame.core :as rf]
    [reagent.core :as r]
-   [clojure.string :as str]))
-
-;; Helper to format Date object to YYYY-MM-DD based on local time
-;; TODO: Move this to a shared utility namespace?
-(defn format-date-obj-to-iso-str [date-obj]
-  (when date-obj
-    (let [year (.getFullYear date-obj)
-          month-raw (inc (.getMonth date-obj)) ; Month is 0-indexed
-          day-raw (.getDate date-obj)
-          month (if (< month-raw 10) (str "0" month-raw) (str month-raw))
-          day (if (< day-raw 10) (str "0" day-raw) (str day-raw))]
-      (str year "-" month "-" day))))
+   [clojure.string :as str]
+   [picklematch.util :refer [format-date-obj-to-iso-str]])) ; Require the util namespace
 
 (defn schedule-game-panel []
   (let [date-str (r/atom "")

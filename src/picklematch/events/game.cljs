@@ -4,7 +4,8 @@
    [clojure.string :as str]
    [picklematch.firebase.firestore :as fbf]
    [picklematch.firebase.location :as location]
-   [picklematch.rating :as rating]))
+   [picklematch.rating :as rating]
+   [picklematch.util :refer [format-date-obj-to-iso-str]])) ; Add util namespace
 
 ;; Schedule a game
 (rf/reg-event-fx
@@ -26,16 +27,6 @@
     (fn [err]
       (js/console.error "Error scheduling game:" err)
       (rf/dispatch [:games-loaded nil])))))
-
-;; Helper to format Date object to YYYY-MM-DD based on local time
-(defn format-date-obj-to-iso-str [date-obj]
-  (when date-obj
-    (let [year (.getFullYear date-obj)
-          month-raw (inc (.getMonth date-obj)) ; Month is 0-indexed
-          day-raw (.getDate date-obj)
-          month (if (< month-raw 10) (str "0" month-raw) (str month-raw))
-          day (if (< day-raw 10) (str "0" day-raw) (str day-raw))]
-      (str year "-" month "-" day))))
 
 ;; Load games for a date
 (rf/reg-event-db
@@ -169,6 +160,32 @@
        (assoc :loading? false)
        (assoc :all-game-dates (set dates)))))
 
+;; Load game dates for a specific location
+(rf/reg-event-fx
+ :load-game-dates-for-location
+ (fn [{:keys [db]} [_ location-id]]
+   (when location-id
+     {:db (assoc db :loading-dates-for-location? true) ; Use a specific loading flag
+      :firebase/load-game-dates-for-location location-id})))
+
+(rf/reg-fx
+ :firebase/load-game-dates-for-location
+ (fn [location-id]
+   (fbf/load-game-dates-for-location!
+    location-id
+    (fn [dates]
+      (rf/dispatch [:game-dates-for-location-loaded dates]))
+    (fn [err]
+      (js/console.error "Error loading game dates for location:" err)
+      (rf/dispatch [:game-dates-for-location-loaded #{}]))))) ; Dispatch empty set on error
+
+(rf/reg-event-db
+ :game-dates-for-location-loaded
+ (fn [db [_ dates]]
+   (-> db
+       (assoc :loading-dates-for-location? false) ; Clear specific loading flag
+       (assoc :game-dates-for-location (set dates))))) ; Store the dates
+
  ;; Auto-Assign Example
  (rf/reg-event-fx
   :auto-assign-players
@@ -265,8 +282,9 @@
       (js/console.error "Error deleting game:" err)
       (rf/dispatch [:games-loaded nil]))))) ; Clear loading state on error
 
-;; Set selected location
-(rf/reg-event-db
- :set-selected-location
- (fn [db [_ location-id]]
-   (assoc db :selected-location-id location-id)))
+ ;; Set selected location and trigger loading game dates for it
+ (rf/reg-event-fx ; Changed to fx to allow dispatch
+  :set-selected-location
+  (fn [{:keys [db]} [_ location-id]]
+    {:db (assoc db :selected-location-id location-id)
+     :dispatch [:load-game-dates-for-location location-id]}))

@@ -37,4 +37,7 @@
  :is-admin?
  :<- [:user]
  (fn [user _]
-   (= (:role user) "admin")))
+    (= (:role user) "admin")))
+
+;; Game dates for the currently selected location
+(rf/reg-sub :game-dates-for-location (fn [db _] (:game-dates-for-location db)))
