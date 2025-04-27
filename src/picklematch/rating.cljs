@@ -1,11 +1,10 @@
 (ns picklematch.rating
   (:require
-   [picklematch.firebase :as fb]))
+   [picklematch.firebase.firestore :as fbf]))
 
 (defn recalculate-ratings
-  "Given the db (with :players) and updated-game,
-   returns [new-player-ratings rating-event-log].
-   Basic placeholder logic: +5 to winners, -5 to losers."
+  "Given db (:players) and updated-game, returns [new-player-map rating-event].
+   Winners get +5, losers get -5. Then updates Firestore."
   [db updated-game]
   (let [team1-score (:team1-score updated-game)
         team2-score (:team2-score updated-game)
@@ -21,22 +20,16 @@
                 (= winner team1-players) team2-players
                 (= winner team2-players) team1-players
                 :else nil)
-        players (:players db) ;; {uid {:rating .. :role ..}}
+        players (:players db)
         rating-update (fn [acc uid delta]
                         (update-in acc [uid :rating]
-                                   (fnil #(+ % delta) 1200)))]
+                                   (fnil #(+ % delta) 1000)))]
     (if (and (seq winner) (seq loser))
-      (let [new-acc (reduce (fn [acc uid]
-                              (rating-update acc uid 5))
-                            players
-                            winner)
-            new-acc (reduce (fn [acc uid]
-                              (rating-update acc uid -5))
-                            new-acc
-                            loser)]
-        ;; Persist rating changes in Firestore
+      (let [new-acc (reduce (fn [acc uid] (rating-update acc uid 5)) players winner)
+            new-acc (reduce (fn [acc uid] (rating-update acc uid -5)) new-acc loser)]
+        ;; persist changes
         (doseq [[uid info] new-acc]
-          (fb/update-user-rating! uid (:rating info)))
+          (fbf/update-user-rating! uid (:rating info)))
         [new-acc
          {:game-id (:id updated-game)
           :winners winner

@@ -3,20 +3,25 @@
    [re-frame.core :as rf]
    [reagent.core :as r]
    ["react-dom/client" :as rdom-client]
-   [picklematch.views :refer [main-panel]]
-   [picklematch.events]  ;; load to register events
-   [picklematch.subs]    ;; load to register subs
-   [picklematch.firebase :refer [auth-inst]]
+   [picklematch.views.main :refer [main-panel]]
+   [picklematch.events.index]
+   [picklematch.subs]
+   [picklematch.firebase.init :refer [auth-inst]]
    ["firebase/auth" :refer [onAuthStateChanged]]))
 
-;; Event to handle authentication state change
+;; On auth state changed
 (rf/reg-event-fx
  :handle-auth-changed
  (fn [{:keys [db]} [_ user]]
    (if user
-     (let [uid (.-uid user)
-           email (.-email user)]
-       {:dispatch [:login-success {:uid uid :email email}]})
+     (let [uid   (.-uid user)
+           email (.-email user)
+           provider (.-providerId (first (.-providerData user)))]
+       {:dispatch [:login-success {:uid uid 
+                                  :email email 
+                                  :auth-method (if (.startsWith provider "password") 
+                                                "email-password" 
+                                                provider)}]})
      {:db (assoc db :user nil)})))
 
 (defn listen-for-auth-changes []
@@ -25,7 +30,7 @@
    (fn [user]
      (rf/dispatch [:handle-auth-changed user]))))
 
-;; React 18 mount
+;; React 18 Root
 (defonce root
   (rdom-client/createRoot (js/document.getElementById "app")))
 
@@ -34,5 +39,6 @@
 
 (defn init []
   (rf/dispatch-sync [:initialize])
+  (rf/dispatch [:check-email-link])
   (listen-for-auth-changes)
   (mount-root))
