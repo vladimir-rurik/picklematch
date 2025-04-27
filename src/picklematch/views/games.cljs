@@ -19,14 +19,16 @@
         team2-score2 (r/atom (:team2-score2 game))
         is-admin?   (rf/subscribe [:is-admin?])] ; Subscribe to admin status
     (fn []
-      (let [{:keys [id time team1 team2]} game
+      (let [{:keys [id time location team1 team2]} game
             t1p1 (or (:player1 team1) "Empty")
             t1p2 (or (:player2 team1) "Empty")
             t2p1 (or (:player1 team2) "Empty")
-            t2p2 (or (:player2 team2) "Empty")] ; <-- Corrected: Bindings vector closes here
+            t2p2 (or (:player2 team2) "Empty")
+            loc (or location "Not specified")] ; <-- Added location with default value
         ;; Body of the inner let starts here
         [:tr
          [:td time]
+         [:td loc]
          [:td (str (or (user-display t1p1) "Empty")
                    " / "
                    (or (user-display t1p2) "Empty"))]
@@ -35,12 +37,12 @@
            [:input.score-input
             {:type "number"
              :value @team1-score1
-             :placeholder "Game 1"
+             :placeholder ""
              :on-change #(reset! team1-score1 (.. % -target -value))}]
            [:input.score-input
             {:type "number"
              :value @team1-score2
-             :placeholder "Game 2"
+             :placeholder ""
              :on-change #(reset! team1-score2 (.. % -target -value))}]]
          ]
          [:td ; Score T2 (2 rows)
@@ -48,12 +50,12 @@
            [:input.score-input
             {:type "number"
              :value @team2-score1
-             :placeholder "Game 1"
+             :placeholder ""
              :on-change #(reset! team2-score1 (.. % -target -value))}]
            [:input.score-input
             {:type "number"
              :value @team2-score2
-             :placeholder "Game 2"
+             :placeholder ""
              :on-change #(reset! team2-score2 (.. % -target -value))}]]
          ]
          [:td ; Team 2 
@@ -110,6 +112,7 @@
       [:thead
        [:tr
         [:th "Time"]
+        [:th "Location"]
         [:th "Team 1"]
          [:th "Score T1"]
          [:th "Score T2"]

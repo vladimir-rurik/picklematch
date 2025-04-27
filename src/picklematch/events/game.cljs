@@ -8,17 +8,18 @@
 ;; Schedule a game
 (rf/reg-event-fx
  :schedule-game
- (fn [{:keys [db]} [_ date-str time-str]]
+ (fn [{:keys [db]} [_ date-str time-str location]]
    (when (and (seq (str/trim date-str))
-              (seq (str/trim time-str)))
+              (seq (str/trim time-str))
+              (seq (str/trim location)))
      {:db (assoc db :loading? true)
-      :firebase/add-game [date-str time-str]})))
+      :firebase/add-game [date-str time-str location]})))
 
 (rf/reg-fx
  :firebase/add-game
- (fn [[date-str time-str]]
+ (fn [[date-str time-str location]]
    (fbf/add-game!
-    date-str time-str
+    date-str time-str location
     (fn [game-id]
       (rf/dispatch [:load-games-for-date date-str]))
     (fn [err]
@@ -189,6 +190,7 @@
    (let [[p1 p2 p3 p4] (map :uid group-of-4)
          doc-data {:date date-str
                    :time time-str
+                   :location "Tondiraba Indoor" ; Default location for auto-assigned games
                    :team1 {:player1 p1 :player2 p2}
                    :team2 {:player1 p3 :player2 p4}
                    :team1-score1 0

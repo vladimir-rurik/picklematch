@@ -17,7 +17,8 @@
 
 (defn schedule-game-panel []
   (let [date-str (r/atom "")
-        time-str (r/atom "")]
+        time-str (r/atom "")
+        location (r/atom "Tondiraba Indoor")] ; Default location
     (fn []
       [:div.fancy-panel
        [:h3 "Schedule a new game"]
@@ -29,8 +30,18 @@
        [:input {:type "text"
                 :placeholder "e.g. 18:30"
                 :on-change #(reset! time-str (.. % -target -value))}]
+       [:br]
+       [:label "Location: "]
+       [:select {:value @location
+                 :on-change #(reset! location (.. % -target -value))}
+        [:option "Tondiraba Indoor"]
+        [:option "Tondiraba Outdoor"]
+        [:option "Koorti"]
+        [:option "Golden Club"]
+        [:option "Pirita"]]
+       [:br]
        [:button.btn-secondary
-        {:on-click #(rf/dispatch [:schedule-game @date-str @time-str])}
+        {:on-click #(rf/dispatch [:schedule-game @date-str @time-str @location])}
         "Add Game"]])))
 
 (defn admin-panel []
