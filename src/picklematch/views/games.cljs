@@ -13,8 +13,10 @@
             first)))
 
 (defn game-row [game]
-  (let [team1-score (r/atom (:team1-score game))
-        team2-score (r/atom (:team2-score game))
+  (let [team1-score1 (r/atom (:team1-score1 game))
+        team1-score2 (r/atom (:team1-score2 game))
+        team2-score1 (r/atom (:team2-score1 game))
+        team2-score2 (r/atom (:team2-score2 game))
         is-admin?   (rf/subscribe [:is-admin?])] ; Subscribe to admin status
     (fn []
       (let [{:keys [id time team1 team2]} game
@@ -28,16 +30,26 @@
          [:td (str (or (user-display t1p1) "Empty")
                    " / "
                    (or (user-display t1p2) "Empty"))]
-         [:td ; Score T1
+         [:td ; Score T1 Game 1
           [:input.score-input
            {:type "number"
-            :value @team1-score
-            :on-change #(reset! team1-score (.. % -target -value))}]]
-         [:td ; Score T2
+            :value @team1-score1
+            :on-change #(reset! team1-score1 (.. % -target -value))}]]
+         [:td ; Score T1 Game 2
           [:input.score-input
            {:type "number"
-            :value @team2-score
-            :on-change #(reset! team2-score (.. % -target -value))}]]
+            :value @team1-score2
+            :on-change #(reset! team1-score2 (.. % -target -value))}]]
+         [:td ; Score T2 Game 1
+          [:input.score-input
+           {:type "number"
+            :value @team2-score1
+            :on-change #(reset! team2-score1 (.. % -target -value))}]]
+         [:td ; Score T2 Game 2
+          [:input.score-input
+           {:type "number"
+            :value @team2-score2
+            :on-change #(reset! team2-score2 (.. % -target -value))}]]
          [:td ; Team 2 
           (str (or (user-display t2p1) "Empty")
                " / "
@@ -91,8 +103,10 @@
        [:tr
         [:th "Time"]
         [:th "Team 1"]
-         [:th "Score T1"]
-         [:th "Score T2"]
+         [:th "Score T1 G1"]
+         [:th "Score T1 G2"]
+         [:th "Score T2 G1"]
+         [:th "Score T2 G2"]
          [:th "Team 2"] ; Moved Header
          [:th {:class "no-print"} "Action"] ; Hide Action header
          [:th {:class "no-print"} "Register"] ; Hide Register header
