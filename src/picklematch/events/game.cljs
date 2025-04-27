@@ -25,6 +25,16 @@
       (js/console.error "Error scheduling game:" err)
       (rf/dispatch [:games-loaded nil])))))
 
+;; Helper to format Date object to YYYY-MM-DD based on local time
+(defn format-date-obj-to-iso-str [date-obj]
+  (when date-obj
+    (let [year (.getFullYear date-obj)
+          month-raw (inc (.getMonth date-obj)) ; Month is 0-indexed
+          day-raw (.getDate date-obj)
+          month (if (< month-raw 10) (str "0" month-raw) (str month-raw))
+          day (if (< day-raw 10) (str "0" day-raw) (str day-raw))]
+      (str year "-" month "-" day))))
+
 ;; Load games for a date
 (rf/reg-event-db
  :set-selected-date
@@ -80,8 +90,9 @@
  :reload-current-date-games
  (fn [{:keys [db]} _]
    (let [date-obj (:selected-date db)
-         date-str (.toISOString date-obj)]
-     {:dispatch [:load-games-for-date (subs date-str 0 10)]})))
+         date-str (format-date-obj-to-iso-str date-obj)] ; Use local date formatting
+     (when date-str ; Ensure date-str is not nil
+       {:dispatch [:load-games-for-date date-str]}))))
 
 ;; Submit game result => update ratings
 (rf/reg-event-fx
