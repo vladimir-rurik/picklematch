@@ -2,19 +2,21 @@
   (:require
    [re-frame.core :as rf]))
 
-(rf/reg-event-db
+(rf/reg-event-fx ; Changed from reg-event-db to reg-event-fx
  :initialize
  (fn [_ _]
    (js/console.log "Initializing app-db")
-   {:user nil
-    :players {}
-    :games []
-    :selected-date (js/Date.)
-    :all-game-dates #{}
-    :log-of-rating-events []
-    :loading? false
-    :auth-error nil
-    :auth-message nil}))
+   {:db {:user nil ; Initial db state
+         :players {}
+         :games []
+         :selected-date (js/Date.)
+         :all-game-dates #{}
+         :log-of-rating-events []
+         :loading? false
+         :auth-error nil
+         :auth-message nil}
+    :dispatch [:initialize-default-locations] ; Dispatch location initialization
+    :dispatch-later [{:ms 100 :dispatch [:load-all-locations]}]})) ; Dispatch location loading slightly later
 
 (rf/reg-event-db
  :auth-error

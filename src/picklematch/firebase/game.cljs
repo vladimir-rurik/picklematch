@@ -4,11 +4,11 @@
    ["firebase/firestore" :as firestore]))
 
 ;; Game-specific Firestore operations
-(defn add-game! [date-str time-str location on-success on-fail]
+(defn add-game! [date-str time-str location-id on-success on-fail]
   (let [games-collection (firestore/collection db "games")
         doc-data {:date date-str
                   :time time-str
-                  :location location
+                  :location-id location-id
                   :team1 {:player1 nil :player2 nil}
                   :team2 {:player1 nil :player2 nil}
                   :team1-score1 0

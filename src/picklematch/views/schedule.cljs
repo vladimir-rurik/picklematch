@@ -18,7 +18,7 @@
 (defn schedule-game-panel []
   (let [date-str (r/atom "")
         time-str (r/atom "")
-        location (r/atom "Tondiraba Indoor")] ; Default location
+        selected-location-id @(rf/subscribe [:selected-location-id])] ; Use the selected location ID from app state
     (fn []
       [:div.fancy-panel
        [:h3 "Schedule a new game"]
@@ -31,17 +31,8 @@
                 :placeholder "e.g. 18:30"
                 :on-change #(reset! time-str (.. % -target -value))}]
        [:br]
-       [:label "Location: "]
-       [:select {:value @location
-                 :on-change #(reset! location (.. % -target -value))}
-        [:option "Tondiraba Indoor"]
-        [:option "Tondiraba Outdoor"]
-        [:option "Koorti"]
-        [:option "Golden Club"]
-        [:option "Pirita"]]
-       [:br]
        [:button.btn-secondary
-        {:on-click #(rf/dispatch [:schedule-game @date-str @time-str @location])}
+        {:on-click #(rf/dispatch [:schedule-game @date-str @time-str selected-location-id])}
         "Add Game"]])))
 
 (defn admin-panel []

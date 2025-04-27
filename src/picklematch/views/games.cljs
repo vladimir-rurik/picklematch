@@ -17,14 +17,16 @@
         team1-score2 (r/atom (:team1-score2 game))
         team2-score1 (r/atom (:team2-score1 game))
         team2-score2 (r/atom (:team2-score2 game))
-        is-admin?   (rf/subscribe [:is-admin?])] ; Subscribe to admin status
+        is-admin?   (rf/subscribe [:is-admin?])
+        locations @(rf/subscribe [:locations])] ; Subscribe to locations
     (fn []
-      (let [{:keys [id time location team1 team2]} game
+      (let [{:keys [id time location-id team1 team2]} game
             t1p1 (or (:player1 team1) "Empty")
             t1p2 (or (:player2 team1) "Empty")
             t2p1 (or (:player1 team2) "Empty")
             t2p2 (or (:player2 team2) "Empty")
-            loc (or location "Not specified")] ; <-- Added location with default value
+            location (first (filter #(= (:id %) location-id) locations))
+            loc (or (:name location) "Not specified")] ; Get location name from location ID
         ;; Body of the inner let starts here
         [:tr
          [:td time]
@@ -100,12 +102,15 @@
       (str year "-" month "-" day))))
 
 (defn game-list []
-  (let [games @(rf/subscribe [:games])
+  (let [filtered-games @(rf/subscribe [:filtered-games]) ; Use filtered games subscription
         selected-date @(rf/subscribe [:selected-date]) ; Subscribe to selected date
+        selected-location @(rf/subscribe [:selected-location]) ; Subscribe to selected location
         formatted-date (format-date-iso selected-date)]
     [:div#game-list-container ; Add ID for print targeting
      [:div.header-bar
-      [:h2 (str "Game List" (when formatted-date (str " for " formatted-date)))] ; Update title
+      [:h2 (str "Game List" 
+                (when formatted-date (str " for " formatted-date))
+                (when selected-location (str " at " (:name selected-location))))] ; Show location name
       [:button.btn-secondary.no-print {:on-click #(js/window.print)} ; Add no-print class to button
        "Print Game List"]]
      [:table
@@ -121,5 +126,5 @@
          [:th {:class "no-print"} "Register"] ; Hide Register header
          [:th {:class "no-print"} "Admin Action"]]] ; Hide Admin Action header
       [:tbody
-       (for [g games]
+       (for [g filtered-games] ; Use filtered games
          ^{:key (:id g)} [game-row g])]]]))

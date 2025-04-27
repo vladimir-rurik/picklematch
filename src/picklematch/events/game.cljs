@@ -3,23 +3,24 @@
    [re-frame.core :as rf]
    [clojure.string :as str]
    [picklematch.firebase.firestore :as fbf]
+   [picklematch.firebase.location :as location]
    [picklematch.rating :as rating]))
 
 ;; Schedule a game
 (rf/reg-event-fx
  :schedule-game
- (fn [{:keys [db]} [_ date-str time-str location]]
+ (fn [{:keys [db]} [_ date-str time-str location-id]]
    (when (and (seq (str/trim date-str))
               (seq (str/trim time-str))
-              (seq (str/trim location)))
+              (seq (str/trim location-id)))
      {:db (assoc db :loading? true)
-      :firebase/add-game [date-str time-str location]})))
+      :firebase/add-game [date-str time-str location-id]})))
 
 (rf/reg-fx
  :firebase/add-game
- (fn [[date-str time-str location]]
+ (fn [[date-str time-str location-id]]
    (fbf/add-game!
-    date-str time-str location
+    date-str time-str location-id
     (fn [game-id]
       (rf/dispatch [:load-games-for-date date-str]))
     (fn [err]
@@ -168,52 +169,81 @@
        (assoc :loading? false)
        (assoc :all-game-dates (set dates)))))
 
-;; Auto-Assign Example
-(rf/reg-event-fx
- :auto-assign-players
- (fn [{:keys [db]} [_ date-str times]]
-   (let [players (->> (vals (:players db))
-                      (sort-by :rating >))
-         groups  (partition 4 4 nil players)
-         num-games-to-create (min (count times) (count groups))] ; Calculate how many games we can actually create
-     (when (pos? num-games-to-create) ; Check if we can create at least one game
-       {:db (assoc db :loading? true)
-        :dispatch-n
-        (map-indexed
-         (fn [idx time]
-           [:create-game-with-players date-str time (nth groups idx)])
-         (take num-games-to-create times))})))) ; Only map over the times we have groups for
+ ;; Auto-Assign Example
+ (rf/reg-event-fx
+  :auto-assign-players
+  (fn [{:keys [db]} [_ date-str times]]
+    (let [players (->> (vals (:players db))
+                       (sort-by :rating >))
+          groups  (partition 4 4 nil players)
+          num-games-to-create (min (count times) (count groups))]
+      (if (pos? num-games-to-create)
+        {:db (-> db ; Set loading and initialize counter
+                 (assoc :loading? true)
+                 (assoc :auto-assign-pending-count num-games-to-create))
+         :dispatch-n ; Dispatch creation events
+         (map-indexed
+          (fn [idx time]
+            [:create-game-with-players date-str time (nth groups idx)])
+          (take num-games-to-create times))}
+        {:db db})))) ; Do nothing if no games to create
 
 (rf/reg-event-fx
  :create-game-with-players
  (fn [{:keys [db]} [_ date-str time-str group-of-4]]
    (let [[p1 p2 p3 p4] (map :uid group-of-4)
+         selected-location-id (or (:selected-location-id db) 
+                                  (when-let [locations (:locations db)]
+                                    (when-let [first-loc (first locations)]
+                                      (:id first-loc)))) ; Use selected location ID or first location ID
          doc-data {:date date-str
                    :time time-str
-                   :location "Tondiraba Indoor" ; Default location for auto-assigned games
+                   :location-id selected-location-id ; Use selected location ID
                    :team1 {:player1 p1 :player2 p2}
                    :team2 {:player1 p3 :player2 p4}
                    :team1-score1 0
                    :team1-score2 0
-                   :team2-score1 0
-                   :team2-score2 0}]
-     {:db (assoc db :loading? true)
-      :firebase/add-game-with-players doc-data})))
+                    :team2-score1 0
+                    :team2-score2 0}]
+      ;; Don't set loading here, it's set by the caller :auto-assign-players
+      {:firebase/add-game-with-players doc-data})))
 
 (rf/reg-fx
  :firebase/add-game-with-players
  (fn [doc-data]
-   (fbf/add-game-with-players!
-    doc-data
-    (fn [doc-id]
-      (rf/dispatch [:auto-assign-game-created doc-id]))
-    (fn [err]
-      (js/console.error "Error auto-assigning game" err)))))
+  (fbf/add-game-with-players!
+   doc-data
+   (fn [doc-id]
+     (rf/dispatch [:auto-assign-game-creation-success doc-id])) ; Dispatch success
+   (fn [err]
+     (js/console.error "Error auto-assigning game" err)
+     (rf/dispatch [:auto-assign-game-creation-failure err]))))) ; Dispatch failure
 
-(rf/reg-event-db
- :auto-assign-game-created
- (fn [db [_ game-id]]
-   (update db :newly-created-games conj game-id)))
+;; Handlers to track completion of auto-assign
+(rf/reg-event-fx
+ :auto-assign-game-creation-success
+ (fn [{:keys [db]} [_ game-id]]
+   (let [new-count (dec (:auto-assign-pending-count db 1))] ; Decrement counter (default to 1 if missing)
+     (if (zero? new-count)
+       {:db (-> db ; Last game created: clear loading, remove counter
+                (assoc :loading? false)
+                (dissoc :auto-assign-pending-count)
+                (update :newly-created-games conj game-id))
+        :dispatch [:reload-current-date-games]} ; Reload games
+       {:db (-> db ; More games pending: update counter
+                (assoc :auto-assign-pending-count new-count)
+                (update :newly-created-games conj game-id))}))))
+
+(rf/reg-event-fx
+ :auto-assign-game-creation-failure
+ (fn [{:keys [db]} [_ error]]
+   (js/console.error "Auto-assign game creation failed:" error)
+   (let [new-count (dec (:auto-assign-pending-count db 1))]
+     (if (zero? new-count)
+       {:db (-> db ; Last operation failed: clear loading, remove counter
+                (assoc :loading? false)
+                (dissoc :auto-assign-pending-count))}
+       {:db (assoc db :auto-assign-pending-count new-count)})))) ; More games pending: update counter
 
 ;; Delete a game (Admin only)
 (rf/reg-event-fx
@@ -234,3 +264,9 @@
     (fn [err]
       (js/console.error "Error deleting game:" err)
       (rf/dispatch [:games-loaded nil]))))) ; Clear loading state on error
+
+;; Set selected location
+(rf/reg-event-db
+ :set-selected-location
+ (fn [db [_ location-id]]
+   (assoc db :selected-location-id location-id)))
