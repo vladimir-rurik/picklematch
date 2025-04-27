@@ -28,19 +28,20 @@
          [:td (str (or (user-display t1p1) "Empty")
                    " / "
                    (or (user-display t1p2) "Empty"))]
-         [:td (str (or (user-display t2p1) "Empty")
-                   " / "
-                   (or (user-display t2p2) "Empty"))]
-         [:td
+         [:td ; Score T1
           [:input.score-input
            {:type "number"
             :value @team1-score
             :on-change #(reset! team1-score (.. % -target -value))}]]
-         [:td
+         [:td ; Score T2
           [:input.score-input
            {:type "number"
             :value @team2-score
             :on-change #(reset! team2-score (.. % -target -value))}]]
+         [:td ; Team 2 
+          (str (or (user-display t2p1) "Empty")
+               " / "
+               (or (user-display t2p2) "Empty"))]
          [:td {:class "no-print"} ; Hide Action column cell
           [:button.btn-secondary
            {:on-click #(rf/dispatch
@@ -90,9 +91,9 @@
        [:tr
         [:th "Time"]
         [:th "Team 1"]
-        [:th "Team 2"]
          [:th "Score T1"]
          [:th "Score T2"]
+         [:th "Team 2"] ; Moved Header
          [:th {:class "no-print"} "Action"] ; Hide Action header
          [:th {:class "no-print"} "Register"] ; Hide Register header
          [:th {:class "no-print"} "Admin Action"]]] ; Hide Admin Action header
