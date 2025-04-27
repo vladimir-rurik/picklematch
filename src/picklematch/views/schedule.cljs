@@ -4,6 +4,17 @@
    [reagent.core :as r]
    [clojure.string :as str]))
 
+;; Helper to format Date object to YYYY-MM-DD based on local time
+;; TODO: Move this to a shared utility namespace?
+(defn format-date-obj-to-iso-str [date-obj]
+  (when date-obj
+    (let [year (.getFullYear date-obj)
+          month-raw (inc (.getMonth date-obj)) ; Month is 0-indexed
+          day-raw (.getDate date-obj)
+          month (if (< month-raw 10) (str "0" month-raw) (str month-raw))
+          day (if (< day-raw 10) (str "0" day-raw) (str day-raw))]
+      (str year "-" month "-" day))))
+
 (defn schedule-game-panel []
   (let [date-str (r/atom "")
         time-str (r/atom "")]
@@ -23,7 +34,8 @@
         "Add Game"]])))
 
 (defn admin-panel []
-  (let [times (r/atom ["08:00" "09:00" "10:00"])]
+  (let [times (r/atom ["08:00" "09:00" "10:00"])
+        selected-date (rf/subscribe [:selected-date])] ; Subscribe to selected date
     (fn []
       [:div.fancy-panel
        [schedule-game-panel]
@@ -33,7 +45,8 @@
                 :value (str/join "," @times)
                 :on-change #(reset! times (-> % .-target .-value (str/split #",")))}]
        [:button.btn-secondary
-        {:on-click #(rf/dispatch [:auto-assign-players
-                                  (-> (js/Date.) .toISOString (subs 0 10))
-                                  @times])}
+        {:on-click #(let [date-str (format-date-obj-to-iso-str @selected-date)]
+                      (if date-str
+                        (rf/dispatch [:auto-assign-players date-str @times])
+                        (js/alert "Please select a date first!")))} ; Use formatted local date
         "Auto-Assign"]])))
