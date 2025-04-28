@@ -13,41 +13,66 @@
             first)))
 
 (defn game-row [game]
-  (let [team1-score (r/atom (:team1-score game))
-        team2-score (r/atom (:team2-score game))
-        is-admin?   (rf/subscribe [:is-admin?])] ; Subscribe to admin status
+  (let [team1-score1 (r/atom (:team1-score1 game))
+        team1-score2 (r/atom (:team1-score2 game))
+        team2-score1 (r/atom (:team2-score1 game))
+        team2-score2 (r/atom (:team2-score2 game))
+        is-admin?   (rf/subscribe [:is-admin?])
+        locations @(rf/subscribe [:locations])] ; Subscribe to locations
     (fn []
-      (let [{:keys [id time team1 team2]} game
+      (let [{:keys [id time location-id team1 team2]} game
             t1p1 (or (:player1 team1) "Empty")
             t1p2 (or (:player2 team1) "Empty")
             t2p1 (or (:player1 team2) "Empty")
-            t2p2 (or (:player2 team2) "Empty")] ; <-- Corrected: Bindings vector closes here
+            t2p2 (or (:player2 team2) "Empty")
+            location (first (filter #(= (:id %) location-id) locations))
+            loc (or (:name location) "Not specified")] ; Get location name from location ID
         ;; Body of the inner let starts here
         [:tr
          [:td time]
+         [:td loc]
          [:td (str (or (user-display t1p1) "Empty")
                    " / "
                    (or (user-display t1p2) "Empty"))]
-         [:td (str (or (user-display t2p1) "Empty")
-                   " / "
-                   (or (user-display t2p2) "Empty"))]
-         [:td
-          [:input.score-input
-           {:type "number"
-            :value @team1-score
-            :on-change #(reset! team1-score (.. % -target -value))}]]
-         [:td
-          [:input.score-input
-           {:type "number"
-            :value @team2-score
-            :on-change #(reset! team2-score (.. % -target -value))}]]
+         [:td ; Score T1 (2 rows)
+          [:div.score-row
+           [:input.score-input
+            {:type "number"
+             :value @team1-score1
+             :placeholder ""
+             :on-change #(reset! team1-score1 (.. % -target -value))}]
+           [:input.score-input
+            {:type "number"
+             :value @team1-score2
+             :placeholder ""
+             :on-change #(reset! team1-score2 (.. % -target -value))}]]
+         ]
+         [:td ; Score T2 (2 rows)
+          [:div.score-row
+           [:input.score-input
+            {:type "number"
+             :value @team2-score1
+             :placeholder ""
+             :on-change #(reset! team2-score1 (.. % -target -value))}]
+           [:input.score-input
+            {:type "number"
+             :value @team2-score2
+             :placeholder ""
+             :on-change #(reset! team2-score2 (.. % -target -value))}]]
+         ]
+         [:td ; Team 2 
+          (str (or (user-display t2p1) "Empty")
+               " / "
+               (or (user-display t2p2) "Empty"))]
          [:td {:class "no-print"} ; Hide Action column cell
           [:button.btn-secondary
            {:on-click #(rf/dispatch
                         [:submit-game-result
                          id
-                         (js/parseInt @team1-score)
-                         (js/parseInt @team2-score)])}
+                         (js/parseInt @team1-score1)
+                         (js/parseInt @team1-score2)
+                         (js/parseInt @team2-score1)
+                         (js/parseInt @team2-score2)])}
            "Save"]]
          [:td {:class "no-print"} ; Hide Register column cell
           [:button.btn-primary
@@ -77,25 +102,29 @@
       (str year "-" month "-" day))))
 
 (defn game-list []
-  (let [games @(rf/subscribe [:games])
+  (let [filtered-games @(rf/subscribe [:filtered-games]) ; Use filtered games subscription
         selected-date @(rf/subscribe [:selected-date]) ; Subscribe to selected date
+        selected-location @(rf/subscribe [:selected-location]) ; Subscribe to selected location
         formatted-date (format-date-iso selected-date)]
     [:div#game-list-container ; Add ID for print targeting
      [:div.header-bar
-      [:h2 (str "Game List" (when formatted-date (str " for " formatted-date)))] ; Update title
+      [:h2 (str "Game List" 
+                (when formatted-date (str " for " formatted-date))
+                (when selected-location (str " at " (:name selected-location))))] ; Show location name
       [:button.btn-secondary.no-print {:on-click #(js/window.print)} ; Add no-print class to button
        "Print Game List"]]
      [:table
       [:thead
        [:tr
         [:th "Time"]
+        [:th "Location"]
         [:th "Team 1"]
-        [:th "Team 2"]
          [:th "Score T1"]
          [:th "Score T2"]
+         [:th "Team 2"] ; Moved Header
          [:th {:class "no-print"} "Action"] ; Hide Action header
          [:th {:class "no-print"} "Register"] ; Hide Register header
          [:th {:class "no-print"} "Admin Action"]]] ; Hide Admin Action header
       [:tbody
-       (for [g games]
+       (for [g filtered-games] ; Use filtered games
          ^{:key (:id g)} [game-row g])]]]))

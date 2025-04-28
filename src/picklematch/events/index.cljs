@@ -4,4 +4,5 @@
    [picklematch.events.auth]
    [picklematch.events.user]
    [picklematch.events.game]
+   [picklematch.events.location]
    [picklematch.events.rating]))

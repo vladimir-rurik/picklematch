@@ -3,37 +3,30 @@
    [re-frame.core :as rf]
    [clojure.string :as str]
    [picklematch.firebase.firestore :as fbf]
-   [picklematch.rating :as rating]))
+   [picklematch.firebase.location :as location]
+   [picklematch.rating :as rating]
+   [picklematch.util :refer [format-date-obj-to-iso-str]])) ; Add util namespace
 
 ;; Schedule a game
 (rf/reg-event-fx
  :schedule-game
- (fn [{:keys [db]} [_ date-str time-str]]
+ (fn [{:keys [db]} [_ date-str time-str location-id]]
    (when (and (seq (str/trim date-str))
-              (seq (str/trim time-str)))
+              (seq (str/trim time-str))
+              (seq (str/trim location-id)))
      {:db (assoc db :loading? true)
-      :firebase/add-game [date-str time-str]})))
+      :firebase/add-game [date-str time-str location-id]})))
 
 (rf/reg-fx
  :firebase/add-game
- (fn [[date-str time-str]]
+ (fn [[date-str time-str location-id]]
    (fbf/add-game!
-    date-str time-str
+    date-str time-str location-id
     (fn [game-id]
       (rf/dispatch [:load-games-for-date date-str]))
     (fn [err]
       (js/console.error "Error scheduling game:" err)
       (rf/dispatch [:games-loaded nil])))))
-
-;; Helper to format Date object to YYYY-MM-DD based on local time
-(defn format-date-obj-to-iso-str [date-obj]
-  (when date-obj
-    (let [year (.getFullYear date-obj)
-          month-raw (inc (.getMonth date-obj)) ; Month is 0-indexed
-          day-raw (.getDate date-obj)
-          month (if (< month-raw 10) (str "0" month-raw) (str month-raw))
-          day (if (< day-raw 10) (str "0" day-raw) (str day-raw))]
-      (str year "-" month "-" day))))
 
 ;; Load games for a date
 (rf/reg-event-db
@@ -97,10 +90,14 @@
 ;; Submit game result => update ratings
 (rf/reg-event-fx
  :submit-game-result
- (fn [{:keys [db]} [_ game-id team1-score team2-score]]
+ (fn [{:keys [db]} [_ game-id team1-score1 team1-score2 team2-score1 team2-score2]]
    (let [games (:games db)
          game  (some #(when (= (:id %) game-id) %) games)
-         updated-game (assoc game :team1-score team1-score :team2-score team2-score)
+         updated-game (assoc game 
+                             :team1-score1 team1-score1 
+                             :team1-score2 team1-score2
+                             :team2-score1 team2-score1
+                             :team2-score2 team2-score2)
          new-db (update db :games
                         (fn [gs]
                           (map (fn [g] (if (= (:id g) game-id) updated-game g))
@@ -163,49 +160,108 @@
        (assoc :loading? false)
        (assoc :all-game-dates (set dates)))))
 
-;; Auto-Assign Example
+;; Load game dates for a specific location
 (rf/reg-event-fx
- :auto-assign-players
- (fn [{:keys [db]} [_ date-str times]]
-   (let [players (->> (vals (:players db))
-                      (sort-by :rating >))
-         groups  (partition 4 4 nil players)
-         num-games-to-create (min (count times) (count groups))] ; Calculate how many games we can actually create
-     (when (pos? num-games-to-create) ; Check if we can create at least one game
-       {:db (assoc db :loading? true)
-        :dispatch-n
-        (map-indexed
-         (fn [idx time]
-           [:create-game-with-players date-str time (nth groups idx)])
-         (take num-games-to-create times))})))) ; Only map over the times we have groups for
+ :load-game-dates-for-location
+ (fn [{:keys [db]} [_ location-id]]
+   (when location-id
+     {:db (assoc db :loading-dates-for-location? true) ; Use a specific loading flag
+      :firebase/load-game-dates-for-location location-id})))
+
+(rf/reg-fx
+ :firebase/load-game-dates-for-location
+ (fn [location-id]
+   (fbf/load-game-dates-for-location!
+    location-id
+    (fn [dates]
+      (rf/dispatch [:game-dates-for-location-loaded dates]))
+    (fn [err]
+      (js/console.error "Error loading game dates for location:" err)
+      (rf/dispatch [:game-dates-for-location-loaded #{}]))))) ; Dispatch empty set on error
+
+(rf/reg-event-db
+ :game-dates-for-location-loaded
+ (fn [db [_ dates]]
+   (-> db
+       (assoc :loading-dates-for-location? false) ; Clear specific loading flag
+       (assoc :game-dates-for-location (set dates))))) ; Store the dates
+
+ ;; Auto-Assign Example
+ (rf/reg-event-fx
+  :auto-assign-players
+  (fn [{:keys [db]} [_ date-str times]]
+    (let [players (->> (vals (:players db))
+                       (sort-by :rating >))
+          groups  (partition 4 4 nil players)
+          num-games-to-create (min (count times) (count groups))]
+      (if (pos? num-games-to-create)
+        {:db (-> db ; Set loading and initialize counter
+                 (assoc :loading? true)
+                 (assoc :auto-assign-pending-count num-games-to-create))
+         :dispatch-n ; Dispatch creation events
+         (map-indexed
+          (fn [idx time]
+            [:create-game-with-players date-str time (nth groups idx)])
+          (take num-games-to-create times))}
+        {:db db})))) ; Do nothing if no games to create
 
 (rf/reg-event-fx
  :create-game-with-players
  (fn [{:keys [db]} [_ date-str time-str group-of-4]]
    (let [[p1 p2 p3 p4] (map :uid group-of-4)
+         selected-location-id (or (:selected-location-id db) 
+                                  (when-let [locations (:locations db)]
+                                    (when-let [first-loc (first locations)]
+                                      (:id first-loc)))) ; Use selected location ID or first location ID
          doc-data {:date date-str
                    :time time-str
+                   :location-id selected-location-id ; Use selected location ID
                    :team1 {:player1 p1 :player2 p2}
                    :team2 {:player1 p3 :player2 p4}
-                   :team1-score 0
-                   :team2-score 0}]
-     {:db (assoc db :loading? true)
-      :firebase/add-game-with-players doc-data})))
+                   :team1-score1 0
+                   :team1-score2 0
+                    :team2-score1 0
+                    :team2-score2 0}]
+      ;; Don't set loading here, it's set by the caller :auto-assign-players
+      {:firebase/add-game-with-players doc-data})))
 
 (rf/reg-fx
  :firebase/add-game-with-players
  (fn [doc-data]
-   (fbf/add-game-with-players!
-    doc-data
-    (fn [doc-id]
-      (rf/dispatch [:auto-assign-game-created doc-id]))
-    (fn [err]
-      (js/console.error "Error auto-assigning game" err)))))
+  (fbf/add-game-with-players!
+   doc-data
+   (fn [doc-id]
+     (rf/dispatch [:auto-assign-game-creation-success doc-id])) ; Dispatch success
+   (fn [err]
+     (js/console.error "Error auto-assigning game" err)
+     (rf/dispatch [:auto-assign-game-creation-failure err]))))) ; Dispatch failure
 
-(rf/reg-event-db
- :auto-assign-game-created
- (fn [db [_ game-id]]
-   (update db :newly-created-games conj game-id)))
+;; Handlers to track completion of auto-assign
+(rf/reg-event-fx
+ :auto-assign-game-creation-success
+ (fn [{:keys [db]} [_ game-id]]
+   (let [new-count (dec (:auto-assign-pending-count db 1))] ; Decrement counter (default to 1 if missing)
+     (if (zero? new-count)
+       {:db (-> db ; Last game created: clear loading, remove counter
+                (assoc :loading? false)
+                (dissoc :auto-assign-pending-count)
+                (update :newly-created-games conj game-id))
+        :dispatch-n [[:reload-current-date-games] ; Reload games
+                     [:load-game-dates-for-location (:selected-location-id db)]]} ; Update calendar
+       {:db (-> db ; More games pending: update counter
+                (assoc :auto-assign-pending-count new-count)
+                (update :newly-created-games conj game-id))}))))
+
+(rf/reg-event-fx
+ :auto-assign-game-creation-failure
+ (fn [{:keys [db]} [_ error]]
+   (js/console.error "Auto-assign game creation failed:" error)
+   (let [new-count (dec (:auto-assign-pending-count db 1))]
+     (if (zero? new-count)
+       {:db (-> db ; Last operation failed: clear loading, remove counter
+                (assoc :loading? false)
+                (dissoc :auto-assign-pending-count))}
+       {:db (assoc db :auto-assign-pending-count new-count)})))) ; More games pending: update counter
 
 ;; Delete a game (Admin only)
 (rf/reg-event-fx
@@ -215,14 +271,28 @@
    {:db (assoc db :loading? true)
     :firebase/delete-game game-id}))
 
+(rf/reg-event-fx
+ :delete-game-success
+ (fn [{:keys [db]} [_ game-id]]
+   (js/console.log "Game deleted successfully:" game-id)
+   {:dispatch-n [[:reload-current-date-games] ; Reload games for the current date
+                [:load-all-game-dates] ; Update all game dates for the calendar
+                [:load-game-dates-for-location (:selected-location-id db)]]})) ; Update game dates for the current location
+
 (rf/reg-fx
  :firebase/delete-game
  (fn [game-id]
    (fbf/delete-game!
     game-id
     (fn []
-      (js/console.log "Game deleted successfully:" game-id)
-      (rf/dispatch [:reload-current-date-games])) ; Reload games for the current date
+      (rf/dispatch [:delete-game-success game-id])) ; Use the new event handler
     (fn [err]
       (js/console.error "Error deleting game:" err)
       (rf/dispatch [:games-loaded nil]))))) ; Clear loading state on error
+
+ ;; Set selected location and trigger loading game dates for it
+ (rf/reg-event-fx ; Changed to fx to allow dispatch
+  :set-selected-location
+  (fn [{:keys [db]} [_ location-id]]
+    {:db (assoc db :selected-location-id location-id)
+     :dispatch [:load-game-dates-for-location location-id]}))

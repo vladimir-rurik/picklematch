@@ -6,15 +6,19 @@
   "Given db (:players) and updated-game, returns [new-player-map rating-event].
    Winners get +5, losers get -5. Then updates Firestore."
   [db updated-game]
-  (let [team1-score (:team1-score updated-game)
-        team2-score (:team2-score updated-game)
+  (let [team1-score1 (js/parseInt (or (:team1-score1 updated-game) 0))
+        team1-score2 (js/parseInt (or (:team1-score2 updated-game) 0))
+        team2-score1 (js/parseInt (or (:team2-score1 updated-game) 0))
+        team2-score2 (js/parseInt (or (:team2-score2 updated-game) 0))
+        team1-total (+ team1-score1 team1-score2)
+        team2-total (+ team2-score1 team2-score2)
         team1 (get updated-game :team1 {})
         team2 (get updated-game :team2 {})
         team1-players (filter some? [(:player1 team1) (:player2 team1)])
         team2-players (filter some? [(:player1 team2) (:player2 team2)])
         winner (cond
-                 (> team1-score team2-score) team1-players
-                 (> team2-score team1-score) team2-players
+                 (> team1-total team2-total) team1-players
+                 (> team2-total team1-total) team2-players
                  :else nil)
         loser (cond
                 (= winner team1-players) team2-players

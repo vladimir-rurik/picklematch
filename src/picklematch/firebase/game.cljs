@@ -4,14 +4,17 @@
    ["firebase/firestore" :as firestore]))
 
 ;; Game-specific Firestore operations
-(defn add-game! [date-str time-str on-success on-fail]
+(defn add-game! [date-str time-str location-id on-success on-fail]
   (let [games-collection (firestore/collection db "games")
         doc-data {:date date-str
                   :time time-str
+                  :location-id location-id
                   :team1 {:player1 nil :player2 nil}
                   :team2 {:player1 nil :player2 nil}
-                  :team1-score 0
-                  :team2-score 0}]
+                  :team1-score1 0
+                  :team1-score2 0
+                  :team2-score1 0
+                  :team2-score2 0}]
     (-> (firestore/addDoc games-collection (clj->js doc-data))
         (.then (fn [doc-ref] (on-success (.-id doc-ref))))
         (.catch on-fail))))
@@ -53,15 +56,29 @@
 
                                                :else
                                                {})))))))
-        (.then on-success)
+         (.then on-success)
+         (.catch on-fail))))
+
+(defn load-game-dates-for-location! [location-id on-success on-fail]
+  (let [games-collection (firestore/collection db "games")
+        q (firestore/query games-collection
+                           (firestore/where "location-id" "==" location-id))]
+    (-> (firestore/getDocs q)
+        (.then (fn [query-snapshot]
+                 (let [docs  (.-docs query-snapshot)
+                       dates (map #(-> (js->clj (.data %)) (get "date"))
+                                  docs)]
+                   (on-success (into #{} dates))))) ; Return a set of unique dates
         (.catch on-fail))))
 
 (defn store-game-score! [updated-game]
   (let [game-id  (:id updated-game)
         doc-ref  (firestore/doc (firestore/collection db "games") game-id)]
     (-> (firestore/updateDoc doc-ref
-                             (clj->js {:team1-score (:team1-score updated-game)
-                                       :team2-score (:team2-score updated-game)}))
+                             (clj->js {:team1-score1 (:team1-score1 updated-game)
+                                       :team1-score2 (:team1-score2 updated-game)
+                                       :team2-score1 (:team2-score1 updated-game)
+                                       :team2-score2 (:team2-score2 updated-game)}))
         (.then #(js/console.log "Updated game scores for" game-id))
         (.catch #(js/console.error "Error updating game scores:" %)))))
 
