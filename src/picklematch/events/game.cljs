@@ -246,7 +246,8 @@
                 (assoc :loading? false)
                 (dissoc :auto-assign-pending-count)
                 (update :newly-created-games conj game-id))
-        :dispatch [:reload-current-date-games]} ; Reload games
+        :dispatch-n [[:reload-current-date-games] ; Reload games
+                     [:load-game-dates-for-location (:selected-location-id db)]]} ; Update calendar
        {:db (-> db ; More games pending: update counter
                 (assoc :auto-assign-pending-count new-count)
                 (update :newly-created-games conj game-id))}))))
@@ -270,14 +271,21 @@
    {:db (assoc db :loading? true)
     :firebase/delete-game game-id}))
 
+(rf/reg-event-fx
+ :delete-game-success
+ (fn [{:keys [db]} [_ game-id]]
+   (js/console.log "Game deleted successfully:" game-id)
+   {:dispatch-n [[:reload-current-date-games] ; Reload games for the current date
+                [:load-all-game-dates] ; Update all game dates for the calendar
+                [:load-game-dates-for-location (:selected-location-id db)]]})) ; Update game dates for the current location
+
 (rf/reg-fx
  :firebase/delete-game
  (fn [game-id]
    (fbf/delete-game!
     game-id
     (fn []
-      (js/console.log "Game deleted successfully:" game-id)
-      (rf/dispatch [:reload-current-date-games])) ; Reload games for the current date
+      (rf/dispatch [:delete-game-success game-id])) ; Use the new event handler
     (fn [err]
       (js/console.error "Error deleting game:" err)
       (rf/dispatch [:games-loaded nil]))))) ; Clear loading state on error
